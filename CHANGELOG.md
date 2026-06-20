@@ -29,6 +29,9 @@ type (Added / Changed / Fixed / Removed).
 
 ## Added
 
+- Mods can now have a **source link** (GameBanana or any URL). Set it in the
+  mod's Edit dialog; when present, the right-click menu gains "Open source page"
+  which opens it in your browser. Stored in the in-folder metadata.
 - Per-mod metadata is now stored **inside each mod's own folder**
   (`<mod>/.zzz-mod-manager/metadata.json`, with images under `images/`), so it
   travels with the mod when shared and survives folder renames. Holds

@@ -181,12 +181,19 @@ class ModManagerService {
         if (!rel.startsWith('..') && !path.isAbsolute(rel)) relImages.add(rel);
       }
 
-      final existing = await _metadataService.read(modFolder) ?? const ModMetadata();
-      final metadata = existing.copyWith(
-        description: mod.description,
-        sourceUrl: mod.sourceUrl,
+      // Build the sidecar directly from the mod so emptied fields (e.g. a
+      // cleared URL) are actually removed, rather than copyWith keeping the old
+      // value. ModInfo carries every metadata field, so this is a full save.
+      final existing = await _metadataService.read(modFolder);
+      String? orNull(String? v) => (v == null || v.isEmpty) ? null : v;
+      final metadata = ModMetadata(
+        schemaVersion: existing?.schemaVersion ?? ModMetadata.currentSchemaVersion,
+        description: orNull(mod.description),
+        sourceUrl: orNull(mod.sourceUrl),
         tags: mod.tags,
-        characterId: mod.characterId == 'unknown' ? null : mod.characterId,
+        characterId: (mod.characterId.isEmpty || mod.characterId == 'unknown')
+            ? null
+            : mod.characterId,
         images: relImages,
       );
       return await _metadataService.write(modFolder, metadata);

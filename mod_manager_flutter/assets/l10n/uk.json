@@ -77,6 +77,7 @@
       "import_success_title": "Успішно імпортовано!",
       "import_error": "Помилка імпорту: {message}",
       "tag_saved": "Tag оновлено",
+      "invalid_url": "Невірне посилання",
       "paste_error": "Помилка вставки: {message}"
     },
     "tooltips": {
@@ -106,6 +107,8 @@
     "dialog": {
       "edit_title": "Редагувати мод",
       "character_tag": "Тег персонажа:",
+      "source_url": "Посилання на джерело:",
+      "source_url_hint": "https://gamebanana.com/mods/...",
       "cancel": "Скасувати",
       "save": "Зберегти",
       "add_mods_title": "Додати моди",
@@ -125,6 +128,7 @@
     "context_menu": {
       "edit": "Редагувати",
       "edit_keybinds": "Редагувати клавіші ({count})",
+      "open_link": "Відкрити сторінку джерела",
       "add_image": "Додати фото",
       "favorite_add": "В улюблені",
       "favorite_remove": "Видалити з улюблених",

@@ -49,7 +49,7 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   description, tags, source URL, extra image paths. Merge stored metadata into `ModInfo`
   during scan in `ModManagerService`. **Blocks 5–8.**
 
-- [ ] **5. Add a source URL field to mods (link to GameBanana / any page)**
+- [x] **5. Add a source URL field to mods (link to GameBanana / any page)** ✅
   Add `sourceUrl` (or `links`) to `ModInfo` + `toJson`/`fromJson`, persist via the metadata
   store. Add an editable field in the edit dialog and make it clickable (`url_launcher`) from
   the mod card / detail dialog. *Depends on #4.*

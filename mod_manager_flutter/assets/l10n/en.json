@@ -77,6 +77,7 @@
       "import_success_title": "Imported successfully!",
       "import_error": "Import error: {message}",
       "tag_saved": "Tag updated",
+      "invalid_url": "Invalid link",
       "paste_error": "Paste error: {message}"
     },
     "tooltips": {
@@ -106,6 +107,8 @@
     "dialog": {
       "edit_title": "Edit Mod",
       "character_tag": "Character Tag:",
+      "source_url": "Source link:",
+      "source_url_hint": "https://gamebanana.com/mods/...",
       "cancel": "Cancel",
       "save": "Save",
       "add_mods_title": "Add mods",
@@ -125,6 +128,7 @@
     "context_menu": {
       "edit": "Edit",
       "edit_keybinds": "Edit keybinds ({count})",
+      "open_link": "Open source page",
       "add_image": "Add image",
       "favorite_add": "Add to favorites",
       "favorite_remove": "Remove from favorites",

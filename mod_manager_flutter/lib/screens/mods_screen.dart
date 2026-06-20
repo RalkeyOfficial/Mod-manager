@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,7 @@ import 'package:path/path.dart' as path;
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:cross_file/cross_file.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/constants.dart';
 import '../models/character_info.dart';
 import '../models/keybind_info.dart';
@@ -738,15 +740,18 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
   void _showEditDialog(ModInfo mod) {
     final selectedChar = ValueNotifier<String>(mod.characterId);
+    final urlController = TextEditingController(text: mod.sourceUrl ?? '');
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(loc.t('mods.dialog.edit_title')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Text(
               mod.name,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
@@ -807,7 +812,30 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 );
               },
             ),
+            const SizedBox(height: 16),
+            Text(
+              loc.t('mods.dialog.source_url'),
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: urlController,
+              keyboardType: TextInputType.url,
+              decoration: InputDecoration(
+                hintText: loc.t('mods.dialog.source_url_hint'),
+                prefixIcon: const Icon(Icons.link, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                isDense: true,
+              ),
+            ),
           ],
+          ),
         ),
         actions: [
           TextButton(
@@ -816,23 +844,57 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           ),
           FilledButton(
             onPressed: () async {
+              // Persist the URL (full save), then the character tag (which also
+              // mirrors to config.json and reloads the list).
+              await ApiService.updateMod(mod.copyWith(
+                characterId: selectedChar.value,
+                sourceUrl: urlController.text.trim(),
+              ));
               await _saveTag(mod.id, selectedChar.value);
-              await loadMods(showLoading: false);
+              if (!mounted) return;
               Navigator.pop(context);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(loc.t('mods.snackbar.tag_saved')),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
-              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(loc.t('mods.snackbar.tag_saved')),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
             },
             child: Text(loc.t('mods.dialog.save')),
           ),
         ],
       ),
     );
+  }
+
+  /// Opens a mod's source URL in the default browser.
+  Future<void> _openModLink(ModInfo mod) async {
+    final url = mod.sourceUrl;
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(loc.t('mods.snackbar.invalid_url')),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(loc.t('mods.errors.generic', params: {'message': e.toString()})),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showEditKeybindDialog(ModInfo mod, KeybindInfo keybind) {
@@ -1176,6 +1238,20 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
             Future.delayed(Duration.zero, () => _pasteImageFromClipboard(mod));
           },
         ),
+        // Відкрити сторінку джерела, якщо вказано посилання
+        if (mod.sourceUrl != null && mod.sourceUrl!.isNotEmpty)
+          PopupMenuItem(
+            child: Row(
+              children: [
+                const Icon(Icons.open_in_new, size: 18),
+                const SizedBox(width: 8),
+                Text(loc.t('mods.context_menu.open_link')),
+              ],
+            ),
+            onTap: () {
+              Future.delayed(Duration.zero, () => _openModLink(mod));
+            },
+          ),
         // Показати keybinds якщо є
         if (mod.keybinds != null && mod.keybinds!.isNotEmpty)
           PopupMenuItem(
@@ -1901,12 +1977,21 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         return true;
       }
 
-      // Check if any mod states changed
+      // Check if any mod states changed (including editable metadata, so edits
+      // to URL/description/tags/images refresh the in-memory state).
       for (int j = 0; j < newChar.skins.length; j++) {
-        if (oldChar.skins[j].id != newChar.skins[j].id ||
-            oldChar.skins[j].isActive != newChar.skins[j].isActive ||
-            oldChar.skins[j].name != newChar.skins[j].name ||
-            oldChar.skins[j].isFavorite != newChar.skins[j].isFavorite) {
+        final oldMod = oldChar.skins[j];
+        final newMod = newChar.skins[j];
+        if (oldMod.id != newMod.id ||
+            oldMod.isActive != newMod.isActive ||
+            oldMod.name != newMod.name ||
+            oldMod.isFavorite != newMod.isFavorite ||
+            oldMod.characterId != newMod.characterId ||
+            oldMod.sourceUrl != newMod.sourceUrl ||
+            oldMod.description != newMod.description ||
+            oldMod.imagePath != newMod.imagePath ||
+            !listEquals(oldMod.tags, newMod.tags) ||
+            !listEquals(oldMod.images, newMod.images)) {
           return true;
         }
       }
