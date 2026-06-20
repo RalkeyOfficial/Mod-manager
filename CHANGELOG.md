@@ -8,6 +8,14 @@ type (Added / Changed / Fixed / Removed).
 
 ## Fixed
 
+- Performance: saving a mod edit is now near-instant. Previously every save ran
+  a full keybind rescan that re-parsed **every** mod's `.ini` files from disk —
+  and re-parsed the same mod several times (it appears in the Favorites, ALL,
+  and character groups) — taking 1–2s with the dialog blocked open until it
+  finished. Keybinds are now cached per mod (parsed at most once, reused across
+  reloads; invalidated when a keybind is edited or on manual refresh), and the
+  Save flow persists and closes first, refreshing the list afterwards instead of
+  blocking on it. Also removed the verbose per-file console logging.
 - Localization: the "Add mods" dialog and the keybinds dialogs (view, edit, and
   their result/error messages) now respect the EN/UK language toggle. They
   previously used hardcoded strings — the Add mods dialog was always Ukrainian

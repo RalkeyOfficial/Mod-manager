@@ -21,6 +21,13 @@ class ModManagerService {
   final IniParserService _iniParser;
   final ModMetadataService _metadataService;
 
+  /// Parsed keybinds cached per mod id. Keybinds only change when the user
+  /// edits one (or edits the .ini externally), so caching avoids re-parsing
+  /// every mod's .ini files on every reload — a metadata edit no longer pays
+  /// for a full keybind rescan. Invalidated per-mod on keybind edits and
+  /// cleared wholesale on a manual refresh.
+  final Map<String, List<KeybindInfo>> _keybindCache = {};
+
   ModManagerService(this._configService, this._container)
       : _platformService = PlatformServiceFactory.getInstance(),
         _iniParser = IniParserService(),
@@ -748,46 +755,55 @@ class ModManagerService {
   /// Завантажує keybinds для конкретного моду
   /// modId - назва папки моду в modsPath
   Future<List<KeybindInfo>?> getModKeybinds(String modId) async {
+    final cached = _keybindCache[modId];
+    if (cached != null) return cached;
     try {
       if (modsPath == null) return null;
       final modPath = path.join(modsPath!, modId);
       final keybindsData = await _iniParser.parseCharacterDirectory(modId, modPath);
-      return keybindsData?.keybinds;
+      // Cache even an empty result so mods without keybinds aren't re-scanned.
+      final keybinds = keybindsData?.keybinds ?? <KeybindInfo>[];
+      _keybindCache[modId] = keybinds;
+      return keybinds;
     } catch (e) {
-      print('ModManagerService: Помилка завантаження keybinds для моду $modId: $e');
       return null;
     }
   }
 
+  /// Drops a single mod's cached keybinds (call after editing its .ini).
+  void invalidateKeybinds(String modId) => _keybindCache.remove(modId);
+
+  /// Clears all cached keybinds (e.g. on a manual refresh, to pick up .ini
+  /// files changed outside the app).
+  void clearKeybindCache() => _keybindCache.clear();
+
   /// Оновлює інформацію про персонажів, додаючи keybinds до модів
-  /// Приймає список персонажів і додає keybinds до кожного моду
+  /// Приймає список персонажів і додає keybinds до кожного моду.
+  /// Keybinds are cached per mod, so a mod that appears in several groups
+  /// (Favorites / ALL / its character) is parsed at most once.
   Future<List<CharacterInfo>> enrichCharactersWithKeybinds(
     List<CharacterInfo> characters,
   ) async {
     try {
-      print('ModManagerService: Завантаження keybinds для модів...');
-      
       final updatedCharacters = <CharacterInfo>[];
-      
+
       for (final character in characters) {
         final updatedMods = <ModInfo>[];
-        
+
         for (final mod in character.skins) {
           final keybinds = await getModKeybinds(mod.id);
           if (keybinds != null && keybinds.isNotEmpty) {
-            print('ModManagerService: Знайдено ${keybinds.length} keybinds для моду ${mod.id}');
             updatedMods.add(mod.copyWith(keybinds: keybinds));
           } else {
             updatedMods.add(mod);
           }
         }
-        
+
         updatedCharacters.add(character.copyWith(skins: updatedMods));
       }
-      
+
       return updatedCharacters;
     } catch (e) {
-      print('ModManagerService: Помилка збагачення модів keybinds: $e');
       return characters;
     }
   }

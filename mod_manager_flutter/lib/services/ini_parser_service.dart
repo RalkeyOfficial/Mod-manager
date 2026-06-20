@@ -113,23 +113,19 @@ class IniParserService {
     try {
       final dir = Directory(directoryPath);
       if (!await dir.exists()) {
-        print('IniParserService: Директорія не існує: $directoryPath');
         return [];
       }
 
       final iniFiles = <String>[];
-      
+
       await for (final entity in dir.list(recursive: true)) {
         if (entity is File && entity.path.toLowerCase().endsWith('.ini')) {
-          print('IniParserService: Знайдено INI файл: ${entity.path}');
           iniFiles.add(entity.path);
         }
       }
 
-      print('IniParserService: Знайдено ${iniFiles.length} INI файлів в $directoryPath');
       return iniFiles;
     } catch (e) {
-      print('IniParserService: Помилка пошуку INI файлів в $directoryPath: $e');
       return [];
     }
   }
@@ -176,41 +172,33 @@ class IniParserService {
     try {
       final saveModsDir = Directory(saveModsPath);
       if (!await saveModsDir.exists()) {
-        print('IniParserService: saveModsPath не існує: $saveModsPath');
         return {};
       }
 
       final characterKeybinds = <String, CharacterKeybinds>{};
-      print('IniParserService: Сканування $saveModsPath для keybinds...');
 
       await for (final entity in saveModsDir.list()) {
         if (entity is Directory) {
           final characterId = path.basename(entity.path);
-          
+
           // Пропускаємо системні папки
           if (characterId.startsWith('.') || characterId.startsWith('__')) {
             continue;
           }
 
-          print('IniParserService: Перевірка папки $characterId...');
           final keybinds = await parseCharacterDirectory(
             characterId,
             entity.path,
           );
 
           if (keybinds != null) {
-            print('IniParserService: Знайдено ${keybinds.keybinds.length} keybinds для $characterId');
             characterKeybinds[characterId] = keybinds;
-          } else {
-            print('IniParserService: INI файлів не знайдено в $characterId');
           }
         }
       }
 
-      print('IniParserService: Загалом знайдено keybinds для ${characterKeybinds.length} папок');
       return characterKeybinds;
     } catch (e) {
-      print('IniParserService: Помилка парсингу всіх персонажів в $saveModsPath: $e');
       return {};
     }
   }

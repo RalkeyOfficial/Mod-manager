@@ -158,6 +158,18 @@ class ApiService {
     }
   }
 
+  /// Drops cached keybinds for a mod (call after editing its .ini).
+  static Future<void> invalidateKeybinds(String modId) async {
+    await initialize();
+    _modManager!.invalidateKeybinds(modId);
+  }
+
+  /// Clears all cached keybinds (used by manual refresh).
+  static Future<void> clearKeybindCache() async {
+    await initialize();
+    _modManager!.clearKeybindCache();
+  }
+
   static Future<ConfigService> getConfigService() async {
     await initialize();
     return _configService!;

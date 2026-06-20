@@ -483,6 +483,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
   Future<void> _refreshModsList() async {
     if (_isLoadingMods) return;
+    // A manual refresh re-reads everything from disk, including .ini files that
+    // may have changed outside the app.
+    await ApiService.clearKeybindCache();
     await loadMods(showLoading: false);
     if (!mounted || errorMessage != null) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1045,10 +1048,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
             onPressed: () async {
               // Fold any text still in the tag input into the list.
               addTag(tagController.text);
-              // Persist all metadata (full save), then the character tag (which
-              // also mirrors to config.json and reloads the list).
-              // Commit staged image changes to disk (import new, delete removed
-              // managed copies), then save all metadata.
+
+              // 1) Persist everything (the actual save — fast disk writes):
+              //    commit staged images, then the metadata + character tag.
               final committedImages = await _commitGalleryImages(mod, images.value);
               await ApiService.updateMod(mod.copyWith(
                 characterId: selectedChar.value,
@@ -1057,8 +1059,11 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 tags: tags.value,
                 images: committedImages,
               ));
-              await _saveTag(mod.id, selectedChar.value);
+              await ApiService.setModCharacter(mod.id, selectedChar.value);
+
               if (!mounted) return;
+              // 2) Close + confirm immediately — the save is done.
+              setState(() => modCharacterTags[mod.id] = selectedChar.value);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -1066,6 +1071,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                   duration: const Duration(seconds: 1),
                 ),
               );
+              // 3) Refresh the list afterwards, without blocking the dialog.
+              unawaited(loadMods(showLoading: false));
             },
             child: Text(loc.t('mods.dialog.save')),
           ),
@@ -1788,6 +1795,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
         if (updated) {
           await iniFile.writeAsString(lines.join('\n'));
+          // The .ini changed — drop this mod's cached keybinds so the reload
+          // re-parses it.
+          await ApiService.invalidateKeybinds(mod.id);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
