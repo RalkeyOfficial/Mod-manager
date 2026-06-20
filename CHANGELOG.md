@@ -29,6 +29,19 @@ type (Added / Changed / Fixed / Removed).
 
 ## Changed
 
+- Mod card redesign: removed the redundant character badge (the character is
+  already conveyed by the sidebar/title). Clicking the card still toggles the
+  mod, with its on/off state shown as a toggle switch (replacing the old ✓/✕
+  badge, where the ✕ misread as "delete"); an info (ⓘ) button opens the
+  read-only details dialog, and a source-link
+  (↗) button (shown only when a URL is set) opens it in the browser. The footer
+  shows the mod name plus a short strip of tag chips (first few + "+N"). Deeper
+  metadata (images, description, keybinds) lives in the details view rather than
+  cluttering the card.
+- Mod card hover: the card now scales from its centre with a small straight-up
+  lift, instead of growing from the top-left corner toward the top-right. The
+  mods grid also got vertical padding so the hover effect on the top row is no
+  longer clipped at the top edge.
 - Keybinds: the right-click "Keybinds" action is now "Edit keybinds" (and is
   localized), reflecting that the popup is for editing. Key combinations there
   are shown in their exact `.ini` form (including the `VK_` prefix) for editing

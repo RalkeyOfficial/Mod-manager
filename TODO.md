@@ -74,7 +74,7 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
 
 ## 🚀 Enhancements (round 2 — mods list UX & categories)
 
-- [ ] **10. Rework the mod card (modern, metadata-rich)**
+- [x] **10. Rework the mod card (modern, metadata-rich)** ✅
   Redesign `lib/screens/components/mod_card_widget.dart`. Current card: character icon
   top-left (likely drop — redundant once grouped), enabled X/✓ top-right, favorite star on the
   image, keybind count, big bold name below. Surface the new metadata: cover image, name, tags

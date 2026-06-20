@@ -2403,8 +2403,11 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                                     ),
                                 child: GridView.builder(
                                   controller: _modsScrollController,
+                                  // Vertical padding leaves room for the cards'
+                                  // hover lift/scale so the top row isn't clipped.
                                   padding: EdgeInsets.symmetric(
                                     horizontal: AppConstants.smallPadding,
+                                    vertical: 14,
                                   ),
                                   gridDelegate:
                                       const SliverGridDelegateWithFixedCrossAxisCount(
@@ -2669,9 +2672,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         child: ModCardWidget(
           mod: mod,
           isDarkMode: isDarkMode,
-          modCharacterTags: modCharacterTags,
-          getCharacterName: _getCharacterName,
           onFavoriteToggle: () {},
+          onShowDetails: () {},
+          onOpenLink: () {},
         ),
       ),
       child: Tooltip(
@@ -2684,23 +2687,13 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           child: ModCardWidget(
             mod: mod,
             isDarkMode: isDarkMode,
-            modCharacterTags: modCharacterTags,
-            getCharacterName: _getCharacterName,
             onFavoriteToggle: () => _toggleFavorite(mod),
+            onShowDetails: () => _showModDetailsDialog(mod),
+            onOpenLink: () => _openModLink(mod),
           ),
         ),
       ),
     );
-  }
-
-  String _getCharacterName(String characterId) {
-    try {
-      final characters = ref.read(charactersProvider);
-      final character = characters.firstWhere((char) => char.id == characterId);
-      return character.name;
-    } catch (e) {
-      return loc.t('common.unknown');
-    }
   }
 
   bool _charactersActuallyChanged(List<CharacterInfo> newCharacters) {
