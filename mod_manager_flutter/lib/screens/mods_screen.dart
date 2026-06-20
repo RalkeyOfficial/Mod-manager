@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:path/path.dart' as path;
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:cross_file/cross_file.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/constants.dart';
 import '../models/character_info.dart';
@@ -24,6 +26,26 @@ import 'components/mode_toggle_widget.dart';
 import 'components/character_cards_list_widget.dart';
 import 'components/mod_card_widget.dart';
 import 'components/keybinds_widget.dart';
+
+/// A staged gallery entry in the edit dialog. It's one of: an image already in
+/// the mod folder ([existingPath]), a newly picked file to import on save
+/// ([pickedPath]), or pasted bytes to write on save ([pastedBytes]). Nothing
+/// touches disk until the dialog is saved.
+class _EditImage {
+  final String? existingPath;
+  final String? pickedPath;
+  final Uint8List? pastedBytes;
+
+  const _EditImage.existing(this.existingPath)
+      : pickedPath = null,
+        pastedBytes = null;
+  const _EditImage.picked(this.pickedPath)
+      : existingPath = null,
+        pastedBytes = null;
+  const _EditImage.pasted(this.pastedBytes)
+      : existingPath = null,
+        pickedPath = null;
+}
 
 class ModsScreen extends ConsumerStatefulWidget {
   const ModsScreen({super.key});
@@ -744,6 +766,45 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     final descController = TextEditingController(text: mod.description ?? '');
     final tagController = TextEditingController();
     final tags = ValueNotifier<List<String>>(List<String>.from(mod.tags));
+    // Staged gallery: edits only affect this working list and are committed to
+    // disk on Save (Cancel discards them). Seeded from the mod's current images.
+    final images = ValueNotifier<List<_EditImage>>(
+      mod.images.map((p) => _EditImage.existing(p)).toList(),
+    );
+
+    Future<void> pasteImageInto() async {
+      final bytes = await Pasteboard.image;
+      if (bytes == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(loc.t('mods.snackbar.clipboard_empty'))),
+          );
+        }
+        return;
+      }
+      images.value = [...images.value, _EditImage.pasted(bytes)];
+    }
+
+    Future<void> pickImagesInto() async {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.image,
+      );
+      if (result == null) return;
+      final added = result.files
+          .where((f) => f.path != null)
+          .map((f) => _EditImage.picked(f.path!))
+          .toList();
+      if (added.isNotEmpty) images.value = [...images.value, ...added];
+    }
+
+    void removeImage(_EditImage item) {
+      images.value = images.value.where((e) => e != item).toList();
+    }
+
+    void setCover(_EditImage item) {
+      images.value = [item, ...images.value.where((e) => e != item)];
+    }
 
     void addTag(String raw) {
       // Allow comma- or enter-separated entry; dedupe case-insensitively.
@@ -925,6 +986,52 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 );
               },
             ),
+            const SizedBox(height: 16),
+            Text(
+              loc.t('mods.dialog.images'),
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            ValueListenableBuilder<List<_EditImage>>(
+              valueListenable: images,
+              builder: (context, value, _) {
+                if (value.isEmpty) {
+                  return Text(
+                    loc.t('mods.details.no_images'),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  );
+                }
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (int i = 0; i < value.length; i++)
+                      _editImageThumb(
+                        value[i],
+                        isCover: i == 0,
+                        onSetCover: () => setCover(value[i]),
+                        onRemove: () => removeImage(value[i]),
+                      ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: pasteImageInto,
+                  icon: const Icon(Icons.content_paste, size: 16),
+                  label: Text(loc.t('mods.dialog.image_paste')),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: pickImagesInto,
+                  icon: const Icon(Icons.add_photo_alternate_outlined, size: 16),
+                  label: Text(loc.t('mods.dialog.image_add')),
+                ),
+              ],
+            ),
           ],
           ),
           ),
@@ -940,11 +1047,15 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               addTag(tagController.text);
               // Persist all metadata (full save), then the character tag (which
               // also mirrors to config.json and reloads the list).
+              // Commit staged image changes to disk (import new, delete removed
+              // managed copies), then save all metadata.
+              final committedImages = await _commitGalleryImages(mod, images.value);
               await ApiService.updateMod(mod.copyWith(
                 characterId: selectedChar.value,
                 sourceUrl: urlController.text.trim(),
                 description: descController.text.trim(),
                 tags: tags.value,
+                images: committedImages,
               ));
               await _saveTag(mod.id, selectedChar.value);
               if (!mounted) return;
@@ -1154,14 +1265,28 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       );
     }
 
-    return Column(
-      children: [
-        // Square cover box; the full image is fitted inside (contain) so both
-        // portrait and landscape images show completely, letterboxed.
-        Expanded(
-          child: Center(
-            child: AspectRatio(
-              aspectRatio: 1,
+    final hasThumbs = mod.images.length > 1;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Size the cover to a square that fits the available space, reserving
+        // room for the thumbnail strip so it sits directly beneath the image.
+        const thumbsReserved = 64.0; // 56 strip + 8 gap
+        final coverSize = min(
+          constraints.maxWidth,
+          constraints.maxHeight - (hasThumbs ? thumbsReserved : 0),
+        ).clamp(80.0, 360.0).toDouble();
+
+        return Column(
+          // Keep the image + carousel together, centered as one group.
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Square cover box; the full image is fitted inside (contain) so
+            // both portrait and landscape images show completely, letterboxed.
+            SizedBox(
+              width: coverSize,
+              height: coverSize,
               child: ValueListenableBuilder<int>(
                 valueListenable: selected,
                 builder: (context, index, _) {
@@ -1189,50 +1314,51 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 },
               ),
             ),
-          ),
-        ),
-        if (mod.images.length > 1) ...[
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 56,
-            child: ValueListenableBuilder<int>(
-              valueListenable: selected,
-              builder: (context, index, _) {
-                return ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: mod.images.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
-                  itemBuilder: (context, i) {
-                    final isSelected = i == index;
-                    return InkWell(
-                      onTap: () => selected.value = i,
-                      child: Container(
-                        width: 56,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.25),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF6366F1)
-                                : const Color(0xFF334155),
-                            width: 2,
+            if (hasThumbs) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 56,
+                child: ValueListenableBuilder<int>(
+                  valueListenable: selected,
+                  builder: (context, index, _) {
+                    return ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      shrinkWrap: true,
+                      itemCount: mod.images.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 6),
+                      itemBuilder: (context, i) {
+                        final isSelected = i == index;
+                        return InkWell(
+                          onTap: () => selected.value = i,
+                          child: Container(
+                            width: 56,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isSelected
+                                    ? const Color(0xFF6366F1)
+                                    : const Color(0xFF334155),
+                                width: 2,
+                              ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.file(
+                              File(mod.images[i]),
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => _detailImagePlaceholder(52),
+                            ),
                           ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Image.file(
-                          File(mod.images[i]),
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => _detailImagePlaceholder(52),
-                        ),
-                      ),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-        ],
-      ],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -1326,6 +1452,132 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               fontSize: 12,
               fontWeight: FontWeight.bold,
               fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Commits the staged gallery to disk: imports newly picked files and pasted
+  /// bytes into the mod folder, deletes removed images **only when they are
+  /// managed copies** (inside `.zzz-mod-manager/images/` — never the mod's own
+  /// files like a shipped Preview.png), and returns the final absolute paths.
+  Future<List<String>> _commitGalleryImages(ModInfo mod, List<_EditImage> items) async {
+    final modManager = await ApiService.getModManagerService();
+    final modsPath = modManager.modsPath;
+    if (modsPath == null) return mod.images;
+    final folder = path.join(modsPath, mod.id);
+    final managedDir = modManager.metadataService.imagesDir(folder);
+
+    final finalAbs = <String>[];
+    final keptExisting = <String>{};
+    for (final item in items) {
+      if (item.existingPath != null) {
+        finalAbs.add(item.existingPath!);
+        keptExisting.add(item.existingPath!);
+      } else if (item.pastedBytes != null) {
+        final rel = await modManager.metadataService
+            .addImageBytes(folder, item.pastedBytes!);
+        if (rel != null) finalAbs.add(path.join(folder, rel));
+      } else if (item.pickedPath != null) {
+        final rel = await modManager.metadataService
+            .importImageFile(folder, item.pickedPath!);
+        if (rel != null) finalAbs.add(path.join(folder, rel));
+      }
+    }
+
+    for (final original in mod.images) {
+      if (keptExisting.contains(original)) continue;
+      if (path.isWithin(managedDir, original)) {
+        try {
+          final file = File(original);
+          if (await file.exists()) await file.delete();
+        } catch (_) {
+          // Ignore: file may already be gone.
+        }
+      }
+    }
+    return finalAbs;
+  }
+
+  /// A thumbnail in the edit dialog's image manager: shows the (possibly not
+  /// yet saved) image, a cover badge / set-as-cover tap, and a remove button.
+  Widget _editImageThumb(
+    _EditImage item, {
+    required bool isCover,
+    required VoidCallback onSetCover,
+    required VoidCallback onRemove,
+  }) {
+    final Widget image = item.pastedBytes != null
+        ? Image.memory(
+            item.pastedBytes!,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) =>
+                Icon(Icons.broken_image_outlined, color: Colors.grey[600]),
+          )
+        : Image.file(
+            File(item.existingPath ?? item.pickedPath!),
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) =>
+                Icon(Icons.broken_image_outlined, color: Colors.grey[600]),
+          );
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Tooltip(
+              message: loc.t('mods.dialog.image_set_cover'),
+              child: InkWell(
+                onTap: isCover ? null : onSetCover,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isCover
+                          ? const Color(0xFF6366F1)
+                          : const Color(0xFF334155),
+                      width: 2,
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: image,
+                ),
+              ),
+            ),
+          ),
+          if (isCover)
+            Positioned(
+              left: 2,
+              bottom: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  loc.t('mods.dialog.image_cover'),
+                  style: const TextStyle(fontSize: 9, color: Colors.white),
+                ),
+              ),
+            ),
+          Positioned(
+            right: 0,
+            top: 0,
+            child: InkWell(
+              onTap: onRemove,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(2),
+                child: const Icon(Icons.close, size: 14, color: Colors.white),
+              ),
             ),
           ),
         ],

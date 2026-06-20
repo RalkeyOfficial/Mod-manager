@@ -66,7 +66,7 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   `VK_`-stripped here (see #9). Reuse existing keybind chip rendering. Shell can be built
   first; full content depends on #5/#6/#8.
 
-- [ ] **8. Support multiple images per mod with a gallery**
+- [x] **8. Support multiple images per mod with a gallery** ✅
   Extend `ModInfo` from single `imagePath` to a list of images (keep `imagePath` as the
   first/cover for back-compat). Store extra images in app-data `mod_images/` and persist paths
   in the metadata store. Mods list shows the cover (first image); the detail dialog shows a

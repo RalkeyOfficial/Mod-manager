@@ -29,6 +29,14 @@ type (Added / Changed / Fixed / Removed).
 
 ## Added
 
+- Mods support **multiple images** with a small manager in the Edit dialog:
+  **Paste** from the clipboard or **Add files** (multi-select), remove via the
+  thumbnail's ✕, and tap a thumbnail to make it the cover. Like the other
+  fields, image changes are staged and only take effect on **Save** (Cancel
+  discards them — nothing is written or deleted). Removing an image only deletes
+  the manager's own copy, never a file the mod shipped with. Images live in the
+  mod's own folder; the first is the cover shown in the list, and the details
+  dialog shows the full gallery.
 - A read-only **mod details dialog** (right-click → Details) showing the image
   gallery, character, description, tags, clickable source link, and keybinds in
   one place. Keybinds here are shown **without the `VK_` prefix** (`VK_UP` → `UP`)
