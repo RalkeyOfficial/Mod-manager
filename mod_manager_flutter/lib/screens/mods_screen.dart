@@ -992,8 +992,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
             inTargetSection = false;
           }
           
-          // Якщо ми в потрібній секції і знайшли рядок з key
-          if (inTargetSection && line.toLowerCase().startsWith('key =')) {
+          // Якщо ми в потрібній секції і знайшли рядок з key (key= або Key =)
+          if (inTargetSection && RegExp(r'^key\s*=', caseSensitive: false).hasMatch(line)) {
             lines[i] = 'key = $newKey';
             updated = true;
             break;
@@ -1177,7 +1177,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               children: [
                 const Icon(Icons.keyboard_outlined, size: 18),
                 const SizedBox(width: 8),
-                Text('Keybinds (${mod.keybinds!.length})'),
+                Text(loc.t('mods.context_menu.edit_keybinds',
+                    params: {'count': '${mod.keybinds!.length}'})),
               ],
             ),
             onTap: () {

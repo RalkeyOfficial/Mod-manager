@@ -124,6 +124,7 @@
     },
     "context_menu": {
       "edit": "Edit",
+      "edit_keybinds": "Edit keybinds ({count})",
       "add_image": "Add image",
       "favorite_add": "Add to favorites",
       "favorite_remove": "Remove from favorites",

@@ -204,10 +204,9 @@ class KeybindsBadge extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final keybindCount = keybinds!.keybinds.fold<int>(
-      0,
-      (sum, kb) => sum + kb.keys.length,
-    );
+    final keybindCount = keybinds!.keybinds
+        .where((kb) => kb.keyValue != null && kb.keyValue!.isNotEmpty)
+        .length;
 
     return InkWell(
       onTap: onTap,

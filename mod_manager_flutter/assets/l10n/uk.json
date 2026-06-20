@@ -124,6 +124,7 @@
     },
     "context_menu": {
       "edit": "Редагувати",
+      "edit_keybinds": "Редагувати клавіші ({count})",
       "add_image": "Додати фото",
       "favorite_add": "В улюблені",
       "favorite_remove": "Видалити з улюблених",

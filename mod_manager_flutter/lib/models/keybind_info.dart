@@ -8,8 +8,14 @@ class KeybindInfo {
     required this.keys,
   });
 
-  /// Отримує значення клавіші з секції (тільки поле 'key')
-  String? get keyValue => keys['key'];
+  /// Отримує значення клавіші з секції (поле 'key', незалежно від регістру).
+  /// INI files may write either `key =` or `Key =`, so look it up case-insensitively.
+  String? get keyValue {
+    for (final entry in keys.entries) {
+      if (entry.key.toLowerCase() == 'key') return entry.value;
+    }
+    return null;
+  }
 
   /// Отримує красиву назву секції (без префіксу Key)
   String get displayName {
