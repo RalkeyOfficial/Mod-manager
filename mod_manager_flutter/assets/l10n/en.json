@@ -138,6 +138,23 @@
       "plural": "mods",
       "success_single": "Added {count} mod",
       "success_plural": "Added {count} mods"
+    },
+    "keybinds": {
+      "title": "Keybinds: {name}",
+      "close": "Close",
+      "edit_title": "Edit Keybind: {name}",
+      "edit_prompt": "Press the key combination you want to use:",
+      "field_label": "Key Combination",
+      "field_hint": "e.g., VK_F1, CTRL VK_A",
+      "common_title": "Common keys:",
+      "common_list": "VK_F1 to VK_F12, VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT\nCTRL, ALT, SHIFT, no_alt, no_shift, no_CTRL",
+      "cancel": "Cancel",
+      "save": "Save",
+      "updated": "Keybind updated: {name} → {key}",
+      "error_no_path": "Mods path not configured",
+      "error_no_dir": "Mod directory not found",
+      "error_no_ini": "No INI file found",
+      "error_save": "Error saving keybind: {message}"
     }
   },
   "clipboard": {

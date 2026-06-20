@@ -841,7 +841,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Edit Keybind: ${keybind.displayName}',
+                loc.t('mods.keybinds.edit_title', params: {'name': keybind.displayName}),
                 style: const TextStyle(fontSize: 18),
               ),
             ),
@@ -851,16 +851,16 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Press the key combination you want to use:',
-              style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+            Text(
+              loc.t('mods.keybinds.edit_prompt'),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: keyController,
               decoration: InputDecoration(
-                labelText: 'Key Combination',
-                hintText: 'e.g., VK_F1, CTRL VK_A',
+                labelText: loc.t('mods.keybinds.field_label'),
+                hintText: loc.t('mods.keybinds.field_hint'),
                 prefixIcon: const Icon(Icons.keyboard, color: Color(0xFFFBBF24)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -885,21 +885,21 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: const Color(0xFF334155)),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Common keys:',
-                    style: TextStyle(
+                    loc.t('mods.keybinds.common_title'),
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFE2E8F0),
                     ),
                   ),
-                  SizedBox(height: 6),
+                  const SizedBox(height: 6),
                   Text(
-                    'VK_F1 to VK_F12, VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT\nCTRL, ALT, SHIFT, no_alt, no_shift, no_CTRL',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    loc.t('mods.keybinds.common_list'),
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                   ),
                 ],
               ),
@@ -909,7 +909,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(loc.t('mods.keybinds.cancel')),
           ),
           FilledButton(
             onPressed: () async {
@@ -921,7 +921,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 await loadMods(showLoading: false);
               }
             },
-            child: const Text('Save'),
+            child: Text(loc.t('mods.keybinds.save')),
           ),
         ],
       ),
@@ -936,7 +936,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       if (modsPath == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mods path not configured')),
+            SnackBar(content: Text(loc.t('mods.keybinds.error_no_path'))),
           );
         }
         return;
@@ -949,7 +949,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       if (!await modDir.exists()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mod directory not found')),
+            SnackBar(content: Text(loc.t('mods.keybinds.error_no_dir'))),
           );
         }
         return;
@@ -965,7 +965,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       if (iniFiles.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No INI file found')),
+            SnackBar(content: Text(loc.t('mods.keybinds.error_no_ini'))),
           );
         }
         return;
@@ -1005,7 +1005,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Keybind updated: ${keybind.displayName} → $newKey'),
+                content: Text(loc.t('mods.keybinds.updated',
+                    params: {'name': keybind.displayName, 'key': newKey})),
                 backgroundColor: const Color(0xFF10B981),
               ),
             );
@@ -1017,7 +1018,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       print('Error saving keybind: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving keybind: $e')),
+          SnackBar(content: Text(loc.t('mods.keybinds.error_save', params: {'message': e.toString()}))),
         );
       }
     }
@@ -1042,7 +1043,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Keybinds: ${mod.name}',
+                loc.t('mods.keybinds.title', params: {'name': mod.name}),
                 style: const TextStyle(fontSize: 18),
               ),
             ),
@@ -1128,7 +1129,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Закрити'),
+            child: Text(loc.t('mods.keybinds.close')),
           ),
         ],
       ),
@@ -2318,20 +2319,20 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.add_circle_outline, color: Color(0xFF0EA5E9)),
-            SizedBox(width: 8),
-            Text('Додати моди'),
+            const Icon(Icons.add_circle_outline, color: Color(0xFF0EA5E9)),
+            const SizedBox(width: 8),
+            Text(loc.t('mods.dialog.add_mods_title')),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Перетягніть папки з модами у вікно додатку, натисніть Ctrl+V для вставки з буфера обміну, або скопіюйте їх безпосередньо в папку з модами.',
-              style: TextStyle(fontSize: 14),
+            Text(
+              loc.t('mods.dialog.add_mods_description'),
+              style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
             Container(
@@ -2343,18 +2344,18 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                   color: const Color(0xFF0EA5E9).withOpacity(0.3),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.lightbulb_outline,
                     color: Color(0xFF0EA5E9),
                     size: 20,
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Якщо в назві папки є ім\'я персонажа, тег буде встановлено автоматично!',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)),
+                      loc.t('mods.dialog.hint'),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)),
                     ),
                   ),
                 ],
@@ -2365,7 +2366,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Зрозуміло'),
+            child: Text(loc.t('mods.dialog.got_it')),
           ),
         ],
       ),
