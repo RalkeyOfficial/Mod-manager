@@ -50,6 +50,13 @@ type (Added / Changed / Fixed / Removed).
 
 ## Added
 
+- A toolbar above the mods grid to **sort and filter** the current view, all on
+  one row: a search box (matches mod name), a sort menu (Default / Name A–Z /
+  Name Z–A), a **tags** dropdown (checkbox list of the tags present in the view,
+  with an Any/All match-mode toggle and a count badge), and a **favorites-only**
+  toggle. Filters combine; a "Clear filters" button appears under the search
+  (and on the "no matches" screen) to reset them all at once; and the "Add" card
+  is hidden while filtering.
 - Mods support **multiple images** with a small manager in the Edit dialog:
   **Paste** from the clipboard or **Add files** (multi-select), remove via the
   thumbnail's ✕, and tap a thumbnail to make it the cover. Like the other

@@ -151,6 +151,23 @@
       "no_description": "No description. Use Edit to add one.",
       "no_images": "No images"
     },
+    "toolbar": {
+      "search": "Search mods",
+      "sort": "Sort",
+      "clear": "Clear",
+      "no_results": "No mods match your filters",
+      "clear_filters": "Clear filters",
+      "tags": "Tags",
+      "favorites_only": "Show favorites only",
+      "match": "Match",
+      "match_any": "Any",
+      "match_all": "All"
+    },
+    "sort": {
+      "added": "Default",
+      "name_asc": "Name (A–Z)",
+      "name_desc": "Name (Z–A)"
+    },
     "import": {
       "tag_hint": "Automatically tags {count} characters",
       "auto_tag_summary": "Automatically assigned {count} {plural}",

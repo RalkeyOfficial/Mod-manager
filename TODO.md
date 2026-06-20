@@ -82,12 +82,12 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   toggle. Keep it grid-readable; add desktop hover affordances. Stay consistent with the
   details dialog.
 
-- [ ] **11. Custom sorting (default + by name)**
+- [x] **11. Custom sorting (default + by name)** ✅
   Mods currently list in folder/add order. Add a sort control: Default (add order) and Name
   (A–Z, case-insensitive), sorting within each group. Future keys: date added, favorite/enabled
   first. Persist the choice in config if easy. Pure UI/state over the loaded `ModInfo` list.
 
-- [ ] **12. Filter by name and/or tag**
+- [x] **12. Filter by name and/or tag** ✅
   Add a search/filter bar: free-text on mod name + filter by tag(s) (combine with AND). Live
   filter the displayed list; consider a chip picker of known tags. In-memory only. Shares the
   toolbar with sorting (#11).
