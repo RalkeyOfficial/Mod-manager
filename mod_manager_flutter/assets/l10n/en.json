@@ -131,6 +131,7 @@
       "mod_assigned": "Mod \"{mod}\" assigned to {character}"
     },
     "context_menu": {
+      "details": "Details",
       "edit": "Edit",
       "edit_keybinds": "Edit keybinds ({count})",
       "open_link": "Open source page",
@@ -139,6 +140,11 @@
       "favorite_remove": "Remove from favorites",
       "activate": "Activate",
       "deactivate": "Deactivate"
+    },
+    "details": {
+      "keybinds": "Keybinds",
+      "no_description": "No description. Use Edit to add one.",
+      "no_images": "No images"
     },
     "import": {
       "tag_hint": "Automatically tags {count} characters",

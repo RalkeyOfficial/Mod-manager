@@ -29,4 +29,18 @@ void main() {
       expect(kb.keyValue, isNull);
     });
   });
+
+  group('VK_ display formatting (read-only)', () {
+    test('strips VK_ from key tokens, leaves modifiers', () {
+      expect(KeybindInfo.formatForDisplay('ctrl shift no_alt VK_UP'),
+          'ctrl shift no_alt UP');
+      expect(KeybindInfo.formatForDisplay('VK_F1'), 'F1');
+    });
+
+    test('displayKeyValue strips VK_; keyValue stays raw', () {
+      final kb = KeybindInfo(section: 'KeySwap', keys: {'Key': 'alt VK_DOWN'});
+      expect(kb.displayKeyValue, 'alt DOWN');
+      expect(kb.keyValue, 'alt VK_DOWN');
+    });
+  });
 }

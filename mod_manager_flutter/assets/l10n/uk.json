@@ -131,6 +131,7 @@
       "mod_assigned": "Мод \"{mod}\" прив'язано до {character}"
     },
     "context_menu": {
+      "details": "Деталі",
       "edit": "Редагувати",
       "edit_keybinds": "Редагувати клавіші ({count})",
       "open_link": "Відкрити сторінку джерела",
@@ -139,6 +140,11 @@
       "favorite_remove": "Видалити з улюблених",
       "activate": "Активувати",
       "deactivate": "Деактивувати"
+    },
+    "details": {
+      "keybinds": "Клавіші",
+      "no_description": "Немає опису. Натисніть «Редагувати», щоб додати.",
+      "no_images": "Немає зображень"
     },
     "import": {
       "tag_hint": "Розпізнає {count} персонажів",

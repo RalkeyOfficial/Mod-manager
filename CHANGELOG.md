@@ -29,6 +29,11 @@ type (Added / Changed / Fixed / Removed).
 
 ## Added
 
+- A read-only **mod details dialog** (right-click → Details) showing the image
+  gallery, character, description, tags, clickable source link, and keybinds in
+  one place. Keybinds here are shown **without the `VK_` prefix** (`VK_UP` → `UP`)
+  for readability; the edit popup keeps the exact `.ini` form. An Edit shortcut
+  in the header jumps to the editor.
 - The mod Edit dialog now edits **description** and **tags** (add via Enter or
   the + button, remove via the chip's ✕), in addition to character and source
   link. All of it persists to the in-folder metadata. Description previously had

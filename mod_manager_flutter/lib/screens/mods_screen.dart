@@ -963,6 +963,376 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     );
   }
 
+  /// Read-only dialog showing everything about a mod: gallery, character,
+  /// description, tags, source link, and keybinds (VK_-stripped for readability).
+  void _showModDetailsDialog(ModInfo mod) {
+    final selectedImage = ValueNotifier<int>(0);
+    final validKeybinds = (mod.keybinds ?? [])
+        .where((kb) => kb.keyValue != null && kb.keyValue!.isNotEmpty)
+        .toList();
+    final hasCharacter = mod.characterId.isNotEmpty && mod.characterId != 'unknown';
+    final hasDescription = mod.description != null && mod.description!.isNotEmpty;
+    final hasUrl = mod.sourceUrl != null && mod.sourceUrl!.isNotEmpty;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        final media = MediaQuery.of(context);
+        final dialogWidth = (media.size.width * 0.85).clamp(420.0, 820.0);
+        // Leave room for the dialog's title, actions, and insets so the
+        // fixed-height content can't overflow on a small window.
+        final dialogHeight = (media.size.height * 0.7).clamp(300.0, 560.0);
+
+        return AlertDialog(
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(mod.name, style: const TextStyle(fontSize: 18)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                tooltip: loc.t('mods.context_menu.edit'),
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showEditDialog(mod);
+                },
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: dialogWidth,
+            height: dialogHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Left: gallery fills the available vertical space.
+                SizedBox(
+                  width: 300,
+                  child: _detailGallery(mod, selectedImage),
+                ),
+                const SizedBox(width: 20),
+                // Right: scrollable info column.
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (hasCharacter) ...[
+                          Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: Image.asset(
+                                  'assets/characters/${mod.characterId}.png',
+                                  width: 28,
+                                  height: 28,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                      Icons.person, size: 28, color: Colors.grey[600]),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                getCharacterDisplayName(mod.characterId),
+                                style: const TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        // Description is always shown, even when empty.
+                        _detailSectionLabel(loc.t('mods.dialog.description')),
+                        const SizedBox(height: 4),
+                        Text(
+                          hasDescription
+                              ? mod.description!
+                              : loc.t('mods.details.no_description'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: hasDescription ? null : Colors.grey[500],
+                            fontStyle: hasDescription
+                                ? FontStyle.normal
+                                : FontStyle.italic,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (mod.tags.isNotEmpty) ...[
+                          _detailSectionLabel(loc.t('mods.dialog.tags')),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: mod.tags
+                                .map((t) => Chip(
+                                      label: Text(t),
+                                      visualDensity: VisualDensity.compact,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ))
+                                .toList(),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        if (hasUrl) ...[
+                          _detailSectionLabel(loc.t('mods.dialog.source_url')),
+                          const SizedBox(height: 4),
+                          InkWell(
+                            onTap: () => _openModLink(mod),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.open_in_new,
+                                    size: 16, color: Color(0xFF6366F1)),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    mod.sourceUrl!,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF6366F1),
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        if (validKeybinds.isNotEmpty) ...[
+                          _detailSectionLabel(loc.t('mods.details.keybinds')),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children:
+                                validKeybinds.map(_detailKeybindChip).toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.t('mods.keybinds.close')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Left-hand gallery for the details dialog: a large cover that fills the
+  /// available height, with a thumbnail strip below when there's more than one
+  /// image. Shows a placeholder when the mod has no images.
+  Widget _detailGallery(ModInfo mod, ValueNotifier<int> selected) {
+    if (mod.images.isEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          color: Colors.black.withOpacity(0.2),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.image_not_supported_outlined,
+                  size: 40, color: Colors.grey[600]),
+              const SizedBox(height: 8),
+              Text(
+                loc.t('mods.details.no_images'),
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Square cover box; the full image is fitted inside (contain) so both
+        // portrait and landscape images show completely, letterboxed.
+        Expanded(
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: ValueListenableBuilder<int>(
+                valueListenable: selected,
+                builder: (context, index, _) {
+                  final safe = index.clamp(0, mod.images.length - 1);
+                  return MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () => _showImageLightbox(mod.images[safe]),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.25),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF334155), width: 1),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.file(
+                          File(mod.images[safe]),
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) =>
+                              _detailImagePlaceholder(double.infinity),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+        if (mod.images.length > 1) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 56,
+            child: ValueListenableBuilder<int>(
+              valueListenable: selected,
+              builder: (context, index, _) {
+                return ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: mod.images.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (context, i) {
+                    final isSelected = i == index;
+                    return InkWell(
+                      onTap: () => selected.value = i,
+                      child: Container(
+                        width: 56,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.25),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFF6366F1)
+                                : const Color(0xFF334155),
+                            width: 2,
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.file(
+                          File(mod.images[i]),
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => _detailImagePlaceholder(52),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Opens an image large and centered over a translucent dark backdrop.
+  /// Tap anywhere (or the image) to dismiss — no chrome.
+  void _showImageLightbox(String imagePath) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withOpacity(0.85),
+      transitionDuration: const Duration(milliseconds: 150),
+      pageBuilder: (context, _, __) {
+        return GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Center(
+              child: InteractiveViewer(
+                maxScale: 5,
+                child: Image.file(
+                  File(imagePath),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.broken_image_outlined,
+                    size: 64,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _detailImagePlaceholder(double height) {
+    return Container(
+      height: height.isFinite ? height : null,
+      width: double.infinity,
+      alignment: Alignment.center,
+      color: Colors.black.withOpacity(0.2),
+      child: Icon(Icons.broken_image_outlined, color: Colors.grey[600]),
+    );
+  }
+
+  Widget _detailSectionLabel(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey[400],
+        letterSpacing: 0.4,
+      ),
+    );
+  }
+
+  Widget _detailKeybindChip(KeybindInfo keybind) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF1E293B).withOpacity(0.8),
+            const Color(0xFF0F172A).withOpacity(0.9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF334155), width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            keybind.displayName,
+            style: const TextStyle(
+              color: Color(0xFFE2E8F0),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            keybind.displayKeyValue ?? '',
+            style: const TextStyle(
+              color: Color(0xFFFBBF24),
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Opens a mod's source URL in the default browser.
   Future<void> _openModLink(ModInfo mod) async {
     final url = mod.sourceUrl;
@@ -1310,6 +1680,18 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         position.dy,
       ),
       items: [
+        PopupMenuItem(
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, size: 18),
+              const SizedBox(width: 8),
+              Text(loc.t('mods.context_menu.details')),
+            ],
+          ),
+          onTap: () {
+            Future.delayed(Duration.zero, () => _showModDetailsDialog(mod));
+          },
+        ),
         PopupMenuItem(
           child: Row(
             children: [

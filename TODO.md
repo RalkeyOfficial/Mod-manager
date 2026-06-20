@@ -29,7 +29,7 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   `KeybindsBadge` sums `kb.keys.length` (all k=v pairs incl. `condition`/`type`/`$var`), which
   is misleading — count valid keybinds instead.
 
-- [ ] **9. Show `VK_`-stripped keybinds (read-only) in the detail dialog** *(folded into #7)*
+- [x] **9. Show `VK_`-stripped keybinds (read-only) in the detail dialog** ✅ *(done with #7)*
   `VK_` is the Windows Virtual-Key prefix; end users only recognise `F2` / `DOWN`, not
   `VK_F2` / `VK_DOWN`. Show the friendly, `VK_`-stripped form in the **read-only** mod detail
   dialog (#7).
@@ -59,7 +59,7 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   via the metadata store (currently `updateMod` is a stub). Provide tag add/remove UI in the
   edit/detail dialog. Consider tag-based filtering in the mods list later. *Depends on #4.*
 
-- [ ] **7. Add a mod detail dialog**
+- [x] **7. Add a mod detail dialog** ✅ *(read-only; right-click → Details)*
   New **read-only** dialog opened from a mod card showing all mod info: name, character,
   description, tags, source URL (clickable), keybinds, and the image gallery. The central
   place to review everything (the keybinds *edit* popup stays separate). Show keybinds

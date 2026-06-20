@@ -17,6 +17,24 @@ class KeybindInfo {
     return null;
   }
 
+  /// User-friendly form of [keyValue] with the Windows `VK_` prefix stripped
+  /// (e.g. `ctrl no_shift VK_UP` -> `ctrl no_shift UP`). Display only — the
+  /// edit popup still uses the raw [keyValue] for accuracy.
+  String? get displayKeyValue {
+    final value = keyValue;
+    return value == null ? null : formatForDisplay(value);
+  }
+
+  /// Strips the `VK_` virtual-key prefix from every token for display
+  /// (e.g. `VK_UP` -> `UP`, `VK_F1` -> `F1`). Modifiers pass through unchanged.
+  static String formatForDisplay(String value) {
+    return value
+        .split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty)
+        .map((t) => t.toUpperCase().startsWith('VK_') ? t.substring(3) : t)
+        .join(' ');
+  }
+
   /// Отримує красиву назву секції (без префіксу Key)
   String get displayName {
     if (section.toLowerCase().startsWith('key')) {
