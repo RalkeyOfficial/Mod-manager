@@ -71,3 +71,37 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   first/cover for back-compat). Store extra images in app-data `mod_images/` and persist paths
   in the metadata store. Mods list shows the cover (first image); the detail dialog shows a
   swipeable/scrollable gallery. Add UI to add/remove/reorder images. *Depends on #4 + #7.*
+
+## 🚀 Enhancements (round 2 — mods list UX & categories)
+
+- [ ] **10. Rework the mod card (modern, metadata-rich)**
+  Redesign `lib/screens/components/mod_card_widget.dart`. Current card: character icon
+  top-left (likely drop — redundant once grouped), enabled X/✓ top-right, favorite star on the
+  image, keybind count, big bold name below. Surface the new metadata: cover image, name, tags
+  (chips), a source-link indicator, description presence, keybind count, favorite, enabled
+  toggle. Keep it grid-readable; add desktop hover affordances. Stay consistent with the
+  details dialog.
+
+- [ ] **11. Custom sorting (default + by name)**
+  Mods currently list in folder/add order. Add a sort control: Default (add order) and Name
+  (A–Z, case-insensitive), sorting within each group. Future keys: date added, favorite/enabled
+  first. Persist the choice in config if easy. Pure UI/state over the loaded `ModInfo` list.
+
+- [ ] **12. Filter by name and/or tag**
+  Add a search/filter bar: free-text on mod name + filter by tag(s) (combine with AND). Live
+  filter the displayed list; consider a chip picker of known tags. In-memory only. Shares the
+  toolbar with sorting (#11).
+
+- [ ] **13. Group the ALL-mods list by character/category**
+  The ALL view is a flat list — add section headers grouping by character (or category, see
+  #14). Sort within group (#11), hide empty groups when filtering (#12). *Relates to #14.*
+
+- [ ] **14. Support non-character categories (rename characters → categories)**
+  *Larger / plan first.* Everything is keyed to ZZZ characters today (`CharacterInfo`, the
+  roster in `utils/zzz_characters.dart`, the `characterAliases` auto-tag maps duplicated in
+  `mod_manager_service.dart`, the edit-dialog dropdown, `assets/characters/*.png`, metadata
+  `characterId` / config `mod_character_tags`). Generalize to **categories**: characters stay as
+  categories, plus non-character ones (UI, Texture, Audio, Misc, …) and possibly user-defined.
+  Introduce a Category abstraction (id, name, icon, isCharacter), allow assigning mods to any
+  category, migrate existing `characterId` values, and update grouping/sidebar/edit UI naming.
+  Foundational for #13.
