@@ -29,6 +29,10 @@ type (Added / Changed / Fixed / Removed).
 
 ## Added
 
+- The mod Edit dialog now edits **description** and **tags** (add via Enter or
+  the + button, remove via the chip's ✕), in addition to character and source
+  link. All of it persists to the in-folder metadata. Description previously had
+  no way to be saved at all.
 - Mods can now have a **source link** (GameBanana or any URL). Set it in the
   mod's Edit dialog; when present, the right-click menu gains "Open source page"
   which opens it in your browser. Stored in the in-folder metadata.

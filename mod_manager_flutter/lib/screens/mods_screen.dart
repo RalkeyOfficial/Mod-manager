@@ -741,6 +741,25 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
   void _showEditDialog(ModInfo mod) {
     final selectedChar = ValueNotifier<String>(mod.characterId);
     final urlController = TextEditingController(text: mod.sourceUrl ?? '');
+    final descController = TextEditingController(text: mod.description ?? '');
+    final tagController = TextEditingController();
+    final tags = ValueNotifier<List<String>>(List<String>.from(mod.tags));
+
+    void addTag(String raw) {
+      // Allow comma- or enter-separated entry; dedupe case-insensitively.
+      final parts = raw
+          .split(',')
+          .map((t) => t.trim())
+          .where((t) => t.isNotEmpty);
+      final current = List<String>.from(tags.value);
+      for (final t in parts) {
+        if (!current.any((e) => e.toLowerCase() == t.toLowerCase())) {
+          current.add(t);
+        }
+      }
+      tags.value = current;
+      tagController.clear();
+    }
 
     showDialog(
       context: context,
@@ -748,7 +767,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         title: Text(loc.t('mods.dialog.edit_title')),
         content: SizedBox(
           width: 400,
-          child: Column(
+          child: SingleChildScrollView(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -834,7 +854,79 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 isDense: true,
               ),
             ),
+            const SizedBox(height: 16),
+            Text(
+              loc.t('mods.dialog.description'),
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: descController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: loc.t('mods.dialog.description_hint'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              loc.t('mods.dialog.tags'),
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: tagController,
+              textInputAction: TextInputAction.done,
+              onSubmitted: addTag,
+              decoration: InputDecoration(
+                hintText: loc.t('mods.dialog.tag_add_hint'),
+                prefixIcon: const Icon(Icons.label_outline, size: 20),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.add, size: 20),
+                  tooltip: loc.t('mods.dialog.tag_add'),
+                  onPressed: () => addTag(tagController.text),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ValueListenableBuilder<List<String>>(
+              valueListenable: tags,
+              builder: (context, value, _) {
+                if (value.isEmpty) return const SizedBox.shrink();
+                return Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: value
+                      .map((tag) => Chip(
+                            label: Text(tag),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            onDeleted: () {
+                              tags.value = List<String>.from(value)..remove(tag);
+                            },
+                          ))
+                      .toList(),
+                );
+              },
+            ),
           ],
+          ),
           ),
         ),
         actions: [
@@ -844,11 +936,15 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           ),
           FilledButton(
             onPressed: () async {
-              // Persist the URL (full save), then the character tag (which also
-              // mirrors to config.json and reloads the list).
+              // Fold any text still in the tag input into the list.
+              addTag(tagController.text);
+              // Persist all metadata (full save), then the character tag (which
+              // also mirrors to config.json and reloads the list).
               await ApiService.updateMod(mod.copyWith(
                 characterId: selectedChar.value,
                 sourceUrl: urlController.text.trim(),
+                description: descController.text.trim(),
+                tags: tags.value,
               ));
               await _saveTag(mod.id, selectedChar.value);
               if (!mounted) return;

@@ -54,7 +54,7 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   store. Add an editable field in the edit dialog and make it clickable (`url_launcher`) from
   the mod card / detail dialog. *Depends on #4.*
 
-- [ ] **6. Add extended mod metadata (tags + persisted description)**
+- [x] **6. Add extended mod metadata (tags + persisted description)** ✅
   Add a `tags` list to `ModInfo` (model + JSON) and make description editing actually persist
   via the metadata store (currently `updateMod` is a stub). Provide tag add/remove UI in the
   edit/detail dialog. Consider tag-based filtering in the mods list later. *Depends on #4.*
