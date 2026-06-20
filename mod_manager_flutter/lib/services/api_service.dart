@@ -136,11 +136,25 @@ class ApiService {
     }
   }
 
+  /// Persists a mod's editable metadata (description, source URL, tags,
+  /// character, images) into its in-folder sidecar.
   static Future<bool> updateMod(ModInfo mod) async {
     try {
-      return true;
+      await initialize();
+      return await _modManager!.saveModMetadata(mod);
     } catch (e) {
       throw Exception('Помилка оновлення моду: $e');
+    }
+  }
+
+  /// Sets a mod's character assignment (writes the in-folder sidecar and
+  /// mirrors to config.json for backward compatibility).
+  static Future<bool> setModCharacter(String modId, String characterId) async {
+    try {
+      await initialize();
+      return await _modManager!.setModCharacter(modId, characterId);
+    } catch (e) {
+      throw Exception('Помилка оновлення персонажа моду: $e');
     }
   }
 

@@ -29,6 +29,15 @@ type (Added / Changed / Fixed / Removed).
 
 ## Added
 
+- Per-mod metadata is now stored **inside each mod's own folder**
+  (`<mod>/.zzz-mod-manager/metadata.json`, with images under `images/`), so it
+  travels with the mod when shared and survives folder renames. Holds
+  description, source URL, tags, character assignment, and the image gallery.
+  Pasted images are now saved into the mod folder instead of app-data.
+  On first scan, existing data is migrated in automatically: the character tag
+  from `config.json` and any pasted image from the app-data `mod_images/` dir
+  (originals are left in place). Favorite and active-link state stay in
+  `config.json` (they are per-install, not part of the mod).
 - `CLAUDE.md` — guidance for working in this repo (architecture, dev workflow).
 - `TODO.md` — roadmap of planned bug fixes and features.
 - `CHANGELOG.md` — this file.

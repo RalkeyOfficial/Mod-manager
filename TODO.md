@@ -41,7 +41,7 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
 
 ## ✨ Features
 
-- [ ] **4. Build a persistent per-mod metadata store** *(foundation — do first)*
+- [x] **4. Build a persistent per-mod metadata store** ✅ *(in-folder `.zzz-mod-manager/`, with legacy migration)*
   Today `ApiService.updateMod()` (`lib/services/api_service.dart:139`) is a no-op stub
   returning `true` — edits to description never persist, and mods are re-derived from folder
   scans each launch. Add a real metadata store keyed by mod id/folder name (JSON in app-data

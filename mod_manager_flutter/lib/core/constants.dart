@@ -88,6 +88,13 @@ class AppConstants {
   // of a hardcoded constant, as it needs to work in different environments
   static const String configFileName = 'config.json';
 
+  // Per-mod metadata, stored inside each mod's own folder so it travels with
+  // the mod (shareable, rename-safe). Layout: <mod>/.zzz-mod-manager/metadata.json
+  // and <mod>/.zzz-mod-manager/images/*
+  static const String modMetadataDirName = '.zzz-mod-manager';
+  static const String modMetadataFileName = 'metadata.json';
+  static const String modMetadataImagesDirName = 'images';
+
   // Window dimensions
   static const double minWindowWidth = 800;
   static const double minWindowHeight = 500;

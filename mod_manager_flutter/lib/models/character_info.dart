@@ -39,8 +39,19 @@ class ModInfo {
   final String name;
   final String characterId;
   final bool isActive;
+
+  /// Cover image (absolute path). Equals the first entry of [images] when set.
   final String? imagePath;
   final String? description;
+
+  /// Link to the mod's source page (GameBanana or any URL).
+  final String? sourceUrl;
+
+  /// User tags.
+  final List<String> tags;
+
+  /// All gallery images (absolute paths); the first is the cover.
+  final List<String> images;
   final bool isFavorite;
   final List<KeybindInfo>? keybinds;
 
@@ -51,6 +62,9 @@ class ModInfo {
     required this.isActive,
     this.imagePath,
     this.description,
+    this.sourceUrl,
+    this.tags = const [],
+    this.images = const [],
     this.isFavorite = false,
     this.keybinds,
   });
@@ -63,6 +77,9 @@ class ModInfo {
       isActive: json['is_active'] as bool,
       imagePath: json['image_path'] as String?,
       description: json['description'] as String?,
+      sourceUrl: json['source_url'] as String?,
+      tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      images: (json['images'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       isFavorite: json['is_favorite'] as bool? ?? false,
       keybinds: json['keybinds'] != null
           ? (json['keybinds'] as List)
@@ -80,6 +97,9 @@ class ModInfo {
       'is_active': isActive,
       'image_path': imagePath,
       'description': description,
+      'source_url': sourceUrl,
+      'tags': tags,
+      'images': images,
       'is_favorite': isFavorite,
       'keybinds': keybinds?.map((e) => e.toJson()).toList(),
     };
@@ -92,6 +112,9 @@ class ModInfo {
     bool? isActive,
     String? imagePath,
     String? description,
+    String? sourceUrl,
+    List<String>? tags,
+    List<String>? images,
     bool? isFavorite,
     List<KeybindInfo>? keybinds,
   }) {
@@ -102,6 +125,9 @@ class ModInfo {
       isActive: isActive ?? this.isActive,
       imagePath: imagePath ?? this.imagePath,
       description: description ?? this.description,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      tags: tags ?? this.tags,
+      images: images ?? this.images,
       isFavorite: isFavorite ?? this.isFavorite,
       keybinds: keybinds ?? this.keybinds,
     );

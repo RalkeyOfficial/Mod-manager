@@ -3,9 +3,12 @@ import 'package:path/path.dart' as path;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/character_info.dart';
 import '../models/keybind_info.dart';
+import '../models/mod_metadata.dart';
 import '../core/constants.dart';
+import '../utils/path_helper.dart';
 import '../utils/state_providers.dart';
 import 'config_service.dart';
+import 'mod_metadata_service.dart';
 import 'platform_service.dart';
 import 'platform_service_factory.dart';
 import 'ini_parser_service.dart';
@@ -16,10 +19,12 @@ class ModManagerService {
   final PlatformService _platformService;
   final ProviderContainer _container;
   final IniParserService _iniParser;
+  final ModMetadataService _metadataService;
 
   ModManagerService(this._configService, this._container)
       : _platformService = PlatformServiceFactory.getInstance(),
-        _iniParser = IniParserService();
+        _iniParser = IniParserService(),
+        _metadataService = ModMetadataService();
 
   String? get modsPath => _configService.modsPath;
   String? get saveModsPath => _configService.saveModsPath;
@@ -83,15 +88,39 @@ class ModManagerService {
 
       for (final modName in modNames) {
         final isActive = await isModActive(modName);
-        final imagePath = await _findModImage(modName);
+        final modFolder = path.join(modsPath!, modName);
+
+        // Load the in-folder metadata sidecar, migrating legacy storage
+        // (config char tag + app-data image) into it on first encounter.
+        final metadata = await _loadOrMigrateMetadata(modName, modFolder);
+
+        // Resolve the gallery to absolute paths, dropping any that no longer
+        // exist. Fall back to a shipped preview image (Preview.png, etc.).
+        final images = <String>[];
+        for (final rel in metadata.images) {
+          final abs = path.join(modFolder, rel);
+          if (await File(abs).exists()) images.add(abs);
+        }
+        if (images.isEmpty) {
+          final preview = await _findModImage(modName);
+          if (preview != null) images.add(preview);
+        }
+
+        final characterId = (metadata.characterId != null && metadata.characterId!.isNotEmpty)
+            ? metadata.characterId!
+            : (_configService.modCharacterTags[modName] ?? 'unknown');
 
         modsInfo.add(
           ModInfo(
             id: modName,
             name: modName,
-            characterId: 'unknown',
+            characterId: characterId,
             isActive: isActive,
-            imagePath: imagePath,
+            imagePath: images.isNotEmpty ? images.first : null,
+            description: metadata.description,
+            sourceUrl: metadata.sourceUrl,
+            tags: metadata.tags,
+            images: images,
             isFavorite: favoriteSet.contains(modName),
           ),
         );
@@ -102,6 +131,92 @@ class ModManagerService {
       return [];
     }
   }
+
+  /// Loads a mod's metadata sidecar. If none exists yet, migrates legacy
+  /// storage (character tag from config.json, pasted image from the app-data
+  /// `mod_images/` dir) into the mod folder and writes the sidecar once.
+  /// Best-effort: if the folder can't be written, returns the resolved values
+  /// in memory so the app still works.
+  Future<ModMetadata> _loadOrMigrateMetadata(String modName, String modFolder) async {
+    final existing = await _metadataService.read(modFolder);
+    if (existing != null) return existing;
+
+    // No sidecar yet — gather legacy data to migrate.
+    final legacyChar = _configService.modCharacterTags[modName];
+    String? migratedImageRel;
+    try {
+      final legacyImage = File(path.join(PathHelper.getModImagesPath(), '$modName.png'));
+      if (await legacyImage.exists()) {
+        migratedImageRel = await _metadataService.importImageFile(modFolder, legacyImage.path);
+      }
+    } catch (e) {
+      // Ignore: app-data image is optional.
+    }
+
+    final hasLegacyData = (legacyChar != null && legacyChar.isNotEmpty) || migratedImageRel != null;
+    final metadata = ModMetadata(
+      characterId: legacyChar,
+      images: migratedImageRel != null ? [migratedImageRel] : const [],
+    );
+
+    // Only persist when there is something to preserve, so we don't litter
+    // every mod folder with empty sidecars.
+    if (hasLegacyData) {
+      await _metadataService.write(modFolder, metadata);
+    }
+    return metadata;
+  }
+
+  /// Persists editable metadata for a mod into its in-folder sidecar. Image
+  /// paths on [mod] that live inside the mod folder are stored relative; paths
+  /// outside it are ignored (use [ModMetadataService.importImageFile] first).
+  Future<bool> saveModMetadata(ModInfo mod) async {
+    try {
+      if (modsPath == null) return false;
+      final modFolder = path.join(modsPath!, mod.id);
+
+      final relImages = <String>[];
+      for (final abs in mod.images) {
+        final rel = path.relative(abs, from: modFolder);
+        if (!rel.startsWith('..') && !path.isAbsolute(rel)) relImages.add(rel);
+      }
+
+      final existing = await _metadataService.read(modFolder) ?? const ModMetadata();
+      final metadata = existing.copyWith(
+        description: mod.description,
+        sourceUrl: mod.sourceUrl,
+        tags: mod.tags,
+        characterId: mod.characterId == 'unknown' ? null : mod.characterId,
+        images: relImages,
+      );
+      return await _metadataService.write(modFolder, metadata);
+    } catch (e) {
+      print('ModManagerService: failed to save metadata for ${mod.id}: $e');
+      return false;
+    }
+  }
+
+  /// Sets a mod's character assignment in the in-folder sidecar (rename-safe),
+  /// and mirrors it into config.json for backward compatibility.
+  Future<bool> setModCharacter(String modName, String characterId) async {
+    try {
+      // Keep the legacy config copy in sync so older code paths still work.
+      await _configService.setModCharacterTag(modName, characterId);
+
+      if (modsPath == null) return false;
+      final modFolder = path.join(modsPath!, modName);
+      final existing = await _metadataService.read(modFolder) ?? const ModMetadata();
+      return await _metadataService.write(
+        modFolder,
+        existing.copyWith(characterId: characterId),
+      );
+    } catch (e) {
+      print('ModManagerService: failed to set character for $modName: $e');
+      return false;
+    }
+  }
+
+  ModMetadataService get metadataService => _metadataService;
 
   /// Видаляє символічні посилання на моди, які більше не існують
   Future<void> _cleanupInvalidLinks() async {
@@ -545,10 +660,13 @@ class ModManagerService {
       final autoTags = <String, String>{};
 
       for (final modName in modNames) {
-        // Перевіряємо чи вже є тег для цього моду
-        final existingTag = _configService.modCharacterTags[modName];
-        
-        // Якщо тег вже є і він не 'unknown', пропускаємо
+        // Skip mods that already have a character. The in-folder sidecar wins
+        // (so a shared mod's tag isn't clobbered), then the legacy config tag.
+        final modFolder = path.join(modsPath!, modName);
+        final existingMeta = await _metadataService.read(modFolder);
+        final existingTag = (existingMeta?.characterId != null && existingMeta!.characterId!.isNotEmpty)
+            ? existingMeta.characterId
+            : _configService.modCharacterTags[modName];
         if (existingTag != null && existingTag != 'unknown') {
           continue;
         }
@@ -556,7 +674,8 @@ class ModManagerService {
         // Автоматично визначаємо тег з назви
         final detectedChar = await _detectCharacterFromName(modName);
         if (detectedChar != null) {
-          await _configService.setModCharacterTag(modName, detectedChar);
+          // Writes the in-folder sidecar and mirrors to config.json.
+          await setModCharacter(modName, detectedChar);
           autoTags[modName] = detectedChar;
         }
       }

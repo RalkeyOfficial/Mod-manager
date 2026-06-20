@@ -17,7 +17,6 @@ import '../services/api_service.dart';
 import '../services/archive_service.dart';
 import '../utils/state_providers.dart';
 import '../utils/zzz_characters.dart';
-import '../utils/path_helper.dart';
 import '../l10n/app_localizations.dart';
 import 'components/mode_toggle_widget.dart';
 import 'components/character_cards_list_widget.dart';
@@ -110,8 +109,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
   }
 
   Future<void> _saveTag(String modId, String characterId) async {
-    final configService = await ApiService.getConfigService();
-    await configService.setModCharacterTag(modId, characterId);
+    // Writes the in-folder sidecar (rename-safe) and mirrors to config.json.
+    await ApiService.setModCharacter(modId, characterId);
     setState(() {
       modCharacterTags[modId] = characterId;
     });
@@ -144,11 +143,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       for (var oldMod in loadedMods) {
         validModIds.add(oldMod.id);
 
-        // Використовуємо збережений тег або автовизначення
-        String charId = modCharacterTags[oldMod.id] ?? 'unknown';
-
-        // Якщо тегу немає, пробуємо автовизначити
-        if (charId == 'unknown') {
+        // characterId is resolved by the service (in-folder metadata, then the
+        // legacy config tag). Fall back to name-based auto-detection.
+        String charId = oldMod.characterId;
+        if (charId.isEmpty || charId == 'unknown') {
           for (var char in zzzCharacters) {
             if (oldMod.id.toLowerCase().contains(char.toLowerCase()) ||
                 oldMod.name.toLowerCase().contains(char.toLowerCase())) {
@@ -158,21 +156,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           }
         }
 
-        final localImagePath = path.join(
-          PathHelper.getModImagesPath(),
-          '${oldMod.id}.png',
-        );
-        final localImageFile = File(localImagePath);
-        final imagePath = await localImageFile.exists()
-            ? localImagePath
-            : oldMod.imagePath;
-
-        final mod = ModInfo(
-          id: oldMod.id,
-          name: oldMod.name,
+        // Preserve all service-resolved metadata (image, description, url,
+        // tags, images, keybinds); only override the per-install bits here.
+        final mod = oldMod.copyWith(
           characterId: charId,
-          isActive: oldMod.isActive,
-          imagePath: imagePath,
           isFavorite: favoriteSet.contains(oldMod.id),
         );
 
@@ -654,38 +641,57 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     try {
       final imageBytes = await Pasteboard.image;
       if (imageBytes != null) {
-        // Ensure the directory exists
-        await PathHelper.ensureModImagesDirectoryExists();
-        final appDir = Directory(PathHelper.getModImagesPath());
-
-        final imagePath = path.join(appDir.path, '${mod.id}.png');
-        final file = File(imagePath);
-
-        // Видаляємо старе фото якщо існує
-        if (await file.exists()) {
-          await file.delete();
+        // Store the image inside the mod's own folder so it travels with the
+        // mod, and record it in the in-folder metadata sidecar.
+        final modManager = await ApiService.getModManagerService();
+        final modsPath = modManager.modsPath;
+        if (modsPath == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(loc.t('mods.snackbar.clipboard_empty'))),
+            );
+          }
+          return;
         }
 
-        // Записуємо нове фото
-        await file.writeAsBytes(imageBytes);
+        final modFolder = path.join(modsPath, mod.id);
+        final relPath = await modManager.metadataService
+            .addImageBytes(modFolder, imageBytes, extension: 'png');
+        if (relPath == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(loc.t('mods.errors.generic',
+                    params: {'message': 'image write failed'})),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+        final imagePath = path.join(modFolder, relPath);
+
+        // New image becomes the cover; existing gallery images are kept.
+        final updatedImages = [
+          imagePath,
+          ...mod.images.where((i) => i != imagePath),
+        ];
+        final updatedMod = mod.copyWith(images: updatedImages, imagePath: imagePath);
+        await ApiService.updateMod(updatedMod);
 
         // Очищаємо кеш зображення
         if (mounted) {
-          final imageProvider = FileImage(file);
-          await imageProvider.evict();
-
-          // Очищаємо весь image cache
           imageCache.clear();
           imageCache.clearLiveImages();
         }
 
-        // Оновлюємо шлях до зображення в стані без повного перезавантаження
+        // Оновлюємо стан без повного перезавантаження
         if (mounted) {
           final characters = ref.read(charactersProvider);
           final updatedCharacters = characters.map((char) {
             final updatedSkins = char.skins.map((skin) {
               if (skin.id == mod.id) {
-                return skin.copyWith(imagePath: imagePath);
+                return skin.copyWith(images: updatedImages, imagePath: imagePath);
               }
               return skin;
             }).toList();
@@ -2118,10 +2124,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         return;
       }
 
-      // Зберігаємо автоматично визначені теги
-      final configService = await ApiService.getConfigService();
+      // Зберігаємо автоматично визначені теги (in-folder sidecar + config mirror)
       for (final entry in autoTags.entries) {
-        await configService.setModCharacterTag(entry.key, entry.value);
+        await ApiService.setModCharacter(entry.key, entry.value);
       }
 
       // Оновлюємо теги в поточному стані
