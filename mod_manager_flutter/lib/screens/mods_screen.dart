@@ -27,9 +27,6 @@ import 'components/character_cards_list_widget.dart';
 import 'components/mod_card_widget.dart';
 import 'components/keybinds_widget.dart';
 
-/// Sort options for the mods list.
-enum ModSort { added, nameAsc, nameDesc }
-
 /// A staged gallery entry in the edit dialog. It's one of: an image already in
 /// the mod folder ([existingPath]), a newly picked file to import on save
 /// ([pickedPath]), or pasted bytes to write on save ([pastedBytes]). Nothing
@@ -89,20 +86,15 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
   final FocusNode _focusNode = FocusNode();
   late final ScrollController _modsScrollController = ScrollController();
 
-  // Mods list sorting & filtering (session state).
+  // Mods list sorting & filtering live in providers (see state_providers.dart);
+  // only the search box keeps a local controller, mirrored to its provider.
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  ModSort _sortMode = ModSort.added;
-  final Set<String> _activeTagFilters = {};
-  bool _tagMatchAll = false; // false = match ANY selected tag, true = match ALL
-  bool _favoritesOnly = false;
 
   // Anchored dropdown for the tag filter.
   final OverlayPortalController _tagMenuController = OverlayPortalController();
   final LayerLink _tagMenuLink = LayerLink();
 
-  bool get _isFiltering =>
-      _searchQuery.isNotEmpty || _activeTagFilters.isNotEmpty || _favoritesOnly;
+  bool get _isFiltering => ref.read(modFiltersActiveProvider);
 
   // Collapsed group ids in the grouped "ALL" view (in-memory, by character id).
   final Set<String> _collapsedGroups = {};
@@ -110,6 +102,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
   @override
   void initState() {
     super.initState();
+    // The search query persists in a provider; restore the box's text if this
+    // screen is rebuilt while a query is active.
+    _searchController.text = ref.read(modSearchQueryProvider);
     _loadingAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -147,47 +142,6 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     super.dispose();
   }
 
-  /// Applies the active search query, tag filters, and sort to a category's
-  /// mods. Returns a new list (never mutates the provider's list).
-  List<ModInfo> _applySortAndFilter(List<ModInfo> skins) {
-    Iterable<ModInfo> result = skins;
-
-    if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
-      result = result.where((m) => m.name.toLowerCase().contains(q));
-    }
-    if (_favoritesOnly) {
-      result = result.where((m) => m.isFavorite);
-    }
-    if (_activeTagFilters.isNotEmpty) {
-      result = result.where((m) => _tagMatchAll
-          ? _activeTagFilters.every(m.tags.contains) // match ALL selected tags
-          : m.tags.any(_activeTagFilters.contains)); // match ANY selected tag
-    }
-
-    final list = result.toList();
-    switch (_sortMode) {
-      case ModSort.added:
-        break; // keep scan/add order
-      case ModSort.nameAsc:
-        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-        break;
-      case ModSort.nameDesc:
-        list.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
-        break;
-    }
-    return list;
-  }
-
-  /// All distinct tags present in the given mods (sorted), for the tag filter.
-  List<String> _availableTags(List<ModInfo> skins) {
-    final tags = <String>{};
-    for (final m in skins) {
-      tags.addAll(m.tags);
-    }
-    final sorted = tags.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    return sorted;
-  }
 
   Future<void> _loadTags() async {
     final configService = await ApiService.getConfigService();
@@ -2112,7 +2066,6 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     final characters = ref.watch(charactersProvider);
     final selectedIndex = ref.watch(selectedCharacterIndexProvider);
     final currentSkins = ref.watch(currentCharacterSkinsProvider);
-    final visibleSkins = _applySortAndFilter(currentSkins);
     final isDarkMode = ref.watch(isDarkModeProvider);
 
     // The aggregate "ALL" view groups its cards under per-character section
@@ -2316,8 +2269,11 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               ],
             ),
           ),
-          // Search / sort / tag-filter toolbar
-          if (currentSkins.isNotEmpty) _buildModsToolbar(currentSkins),
+          // Search / sort / tag-filter toolbar. Scoped in its own Consumer so a
+          // keystroke or filter toggle rebuilds only the toolbar, not the
+          // whole screen.
+          if (currentSkins.isNotEmpty)
+            Consumer(builder: (context, ref, _) => _buildModsToolbar(ref)),
 
           // Counter for active mods
           if (currentSkins.isNotEmpty)
@@ -2438,7 +2394,16 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                       onDragDone: (details) {
                         _importModsFromFolders(details.files);
                       },
-                      child: currentSkins.isEmpty && characters.isEmpty
+                      // Scoped Consumer: the filtered/sorted list and the
+                      // empty/no-results states rebuild here on filter changes,
+                      // without rebuilding the rest of the screen.
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final visibleSkins = ref.watch(visibleModsProvider);
+                          // Also rebuild when the active-filter flag flips (it
+                          // drives the no-results / add-card states).
+                          ref.watch(modFiltersActiveProvider);
+                          return currentSkins.isEmpty && characters.isEmpty
                           ? Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -2544,7 +2509,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                                   },
                                 ),
                               ),
-                            ),
+                            );
+                        },
+                      ),
                     );
                   },
                 ),
@@ -2767,11 +2734,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
   void _clearFilters() {
     _searchController.clear();
-    setState(() {
-      _searchQuery = '';
-      _activeTagFilters.clear();
-      _favoritesOnly = false;
-    });
+    ref.read(modSearchQueryProvider.notifier).state = '';
+    ref.read(modTagFiltersProvider.notifier).state = <String>{};
+    ref.read(modFavoritesOnlyProvider.notifier).state = false;
   }
 
   String _sortLabel(ModSort mode) {
@@ -2787,8 +2752,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
   /// Search field + sort menu + tag filter menu + favorites toggle, all on one
   /// compact row above the mods grid.
-  Widget _buildModsToolbar(List<ModInfo> skins) {
-    final tags = _availableTags(skins);
+  Widget _buildModsToolbar(WidgetRef ref) {
+    final tags = ref.watch(availableModTagsProvider);
+    final searchQuery = ref.watch(modSearchQueryProvider);
+    final isFiltering = ref.watch(modFiltersActiveProvider);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppConstants.defaultPadding,
@@ -2804,18 +2771,20 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               Expanded(
                 child: TextField(
                   controller: _searchController,
-                  onChanged: (v) => setState(() => _searchQuery = v),
+                  onChanged: (v) =>
+                      ref.read(modSearchQueryProvider.notifier).state = v,
                   decoration: InputDecoration(
                     isDense: true,
                     hintText: loc.t('mods.toolbar.search'),
                     prefixIcon: const Icon(Icons.search, size: 18),
-                    suffixIcon: _searchQuery.isNotEmpty
+                    suffixIcon: searchQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.close, size: 16),
                             tooltip: loc.t('mods.toolbar.clear'),
                             onPressed: () {
                               _searchController.clear();
-                              setState(() => _searchQuery = '');
+                              ref.read(modSearchQueryProvider.notifier).state =
+                                  '';
                             },
                           )
                         : null,
@@ -2830,16 +2799,16 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              _buildSortButton(),
+              _buildSortButton(ref),
               if (tags.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                _buildTagFilterButton(tags),
+                _buildTagFilterButton(ref, tags),
               ],
               const SizedBox(width: 8),
-              _buildFavoritesToggle(),
+              _buildFavoritesToggle(ref),
             ],
           ),
-          if (_isFiltering)
+          if (isFiltering)
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -2873,16 +2842,17 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     );
   }
 
-  Widget _buildSortButton() {
+  Widget _buildSortButton(WidgetRef ref) {
+    final sortMode = ref.watch(modSortProvider);
     return PopupMenuButton<ModSort>(
       tooltip: loc.t('mods.toolbar.sort'),
-      initialValue: _sortMode,
-      onSelected: (m) => setState(() => _sortMode = m),
+      initialValue: sortMode,
+      onSelected: (m) => ref.read(modSortProvider.notifier).state = m,
       itemBuilder: (_) => [
         for (final m in ModSort.values)
           CheckedPopupMenuItem(
             value: m,
-            checked: _sortMode == m,
+            checked: sortMode == m,
             child: Text(_sortLabel(m)),
           ),
       ],
@@ -2892,7 +2862,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           children: [
             const Icon(Icons.sort, size: 18),
             const SizedBox(width: 6),
-            Text(_sortLabel(_sortMode), style: const TextStyle(fontSize: 13)),
+            Text(_sortLabel(sortMode), style: const TextStyle(fontSize: 13)),
             const Icon(Icons.arrow_drop_down, size: 18),
           ],
         ),
@@ -2903,8 +2873,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
   /// Tag filter as an anchored dropdown panel (scales to many tags) with an
   /// Any/All match-mode toggle. Built with OverlayPortal so it's a normal part
   /// of the tree — toggles update state directly and re-filter live.
-  Widget _buildTagFilterButton(List<String> tags) {
-    final count = _activeTagFilters.length;
+  Widget _buildTagFilterButton(WidgetRef ref, List<String> tags) {
+    // Count only tags present in this view — matches what visibleModsProvider
+    // actually applies, so the badge can't claim a filter that does nothing.
+    final count = ref.watch(modTagFiltersProvider).where(tags.contains).length;
     return OverlayPortal(
       controller: _tagMenuController,
       overlayChildBuilder: (context) {
@@ -2966,88 +2938,108 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
   }
 
   Widget _buildTagMenuPanel(List<String> tags) {
-    return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(10),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: 280,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    loc.t('mods.toolbar.match'),
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  Wrap(
-                    spacing: 6,
+    // The panel lives in the app Overlay (via OverlayPortal), so it watches the
+    // filter providers through its own Consumer to rebuild on toggle.
+    return Consumer(
+      builder: (context, ref, _) {
+        final activeTags = ref.watch(modTagFiltersProvider);
+        final matchAll = ref.watch(modTagMatchAllProvider);
+        return Material(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(10),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            width: 280,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ChoiceChip(
-                        label: Text(loc.t('mods.toolbar.match_any')),
-                        selected: !_tagMatchAll,
-                        visualDensity: VisualDensity.compact,
-                        onSelected: (_) => setState(() => _tagMatchAll = false),
+                      Text(
+                        loc.t('mods.toolbar.match'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      ChoiceChip(
-                        label: Text(loc.t('mods.toolbar.match_all')),
-                        selected: _tagMatchAll,
-                        visualDensity: VisualDensity.compact,
-                        onSelected: (_) => setState(() => _tagMatchAll = true),
+                      Wrap(
+                        spacing: 6,
+                        children: [
+                          ChoiceChip(
+                            label: Text(loc.t('mods.toolbar.match_any')),
+                            selected: !matchAll,
+                            visualDensity: VisualDensity.compact,
+                            onSelected: (_) => ref
+                                .read(modTagMatchAllProvider.notifier)
+                                .state = false,
+                          ),
+                          ChoiceChip(
+                            label: Text(loc.t('mods.toolbar.match_all')),
+                            selected: matchAll,
+                            visualDensity: VisualDensity.compact,
+                            onSelected: (_) => ref
+                                .read(modTagMatchAllProvider.notifier)
+                                .state = true,
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                const Divider(height: 1),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    children: [
+                      for (final tag in tags)
+                        CheckboxListTile(
+                          dense: true,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          visualDensity: VisualDensity.compact,
+                          value: activeTags.contains(tag),
+                          title: Text(tag, style: const TextStyle(fontSize: 13)),
+                          onChanged: (sel) {
+                            final next = Set<String>.from(activeTags);
+                            if (sel == true) {
+                              next.add(tag);
+                            } else {
+                              next.remove(tag);
+                            }
+                            ref.read(modTagFiltersProvider.notifier).state =
+                                next;
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const Divider(height: 1),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 280),
-              child: ListView(
-                shrinkWrap: true,
-                padding: EdgeInsets.zero,
-                children: [
-                  for (final tag in tags)
-                    CheckboxListTile(
-                      dense: true,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      visualDensity: VisualDensity.compact,
-                      value: _activeTagFilters.contains(tag),
-                      title: Text(tag, style: const TextStyle(fontSize: 13)),
-                      onChanged: (sel) => setState(() {
-                        if (sel == true) {
-                          _activeTagFilters.add(tag);
-                        } else {
-                          _activeTagFilters.remove(tag);
-                        }
-                      }),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildFavoritesToggle() {
+  Widget _buildFavoritesToggle(WidgetRef ref) {
+    final favoritesOnly = ref.watch(modFavoritesOnlyProvider);
     return Tooltip(
       message: loc.t('mods.toolbar.favorites_only'),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        onTap: () => setState(() => _favoritesOnly = !_favoritesOnly),
+        onTap: () =>
+            ref.read(modFavoritesOnlyProvider.notifier).state = !favoritesOnly,
         child: _toolbarButton(
-          active: _favoritesOnly,
+          active: favoritesOnly,
           child: Icon(
-            _favoritesOnly ? Icons.star : Icons.star_border,
+            favoritesOnly ? Icons.star : Icons.star_border,
             size: 18,
-            color: _favoritesOnly ? const Color(0xFFFACC15) : null,
+            color: favoritesOnly ? const Color(0xFFFACC15) : null,
           ),
         ),
       ),

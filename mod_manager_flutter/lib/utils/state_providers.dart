@@ -76,3 +76,78 @@ final sidebarCollapsedProvider = StateProvider<bool>((ref) => false);
 
 // Auto F10 reload toggle (green = enabled, red = disabled)
 final autoF10ReloadProvider = StateProvider<bool>((ref) => false);
+
+// ── Mods toolbar: search / sort / tag filter / favorites ────────────────────
+// Held here (not as ad-hoc widget state) so the toolbar and the mods grid each
+// rebuild only on the slice they watch, instead of rebuilding the whole screen.
+
+/// Sort options for the mods list.
+enum ModSort { added, nameAsc, nameDesc }
+
+final modSortProvider = StateProvider<ModSort>((ref) => ModSort.added);
+final modSearchQueryProvider = StateProvider<String>((ref) => '');
+final modTagFiltersProvider = StateProvider<Set<String>>((ref) => <String>{});
+// false = match ANY selected tag, true = match ALL.
+final modTagMatchAllProvider = StateProvider<bool>((ref) => false);
+final modFavoritesOnlyProvider = StateProvider<bool>((ref) => false);
+
+/// Whether any filter (search / tags / favorites) is currently narrowing the
+/// list. Sort mode is not a filter.
+final modFiltersActiveProvider = Provider<bool>((ref) {
+  return ref.watch(modSearchQueryProvider).isNotEmpty ||
+      ref.watch(modTagFiltersProvider).isNotEmpty ||
+      ref.watch(modFavoritesOnlyProvider);
+});
+
+/// Distinct tags present in the current view's mods (sorted), for the
+/// tag-filter dropdown.
+final availableModTagsProvider = Provider<List<String>>((ref) {
+  final tags = <String>{};
+  for (final m in ref.watch(currentCharacterSkinsProvider)) {
+    tags.addAll(m.tags);
+  }
+  return tags.toList()
+    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+});
+
+/// The current view's mods after applying search, favorites, tag filters and
+/// sort. Tag filters are intersected with the tags actually present in the view
+/// so a tag selected elsewhere (e.g. before switching tabs) can't silently
+/// empty the list.
+final visibleModsProvider = Provider<List<ModInfo>>((ref) {
+  final query = ref.watch(modSearchQueryProvider).toLowerCase();
+  final favoritesOnly = ref.watch(modFavoritesOnlyProvider);
+  final tagFilters = ref.watch(modTagFiltersProvider);
+  final matchAll = ref.watch(modTagMatchAllProvider);
+  final sort = ref.watch(modSortProvider);
+
+  Iterable<ModInfo> result = ref.watch(currentCharacterSkinsProvider);
+
+  if (query.isNotEmpty) {
+    result = result.where((m) => m.name.toLowerCase().contains(query));
+  }
+  if (favoritesOnly) {
+    result = result.where((m) => m.isFavorite);
+  }
+  final activeTags = tagFilters.isEmpty
+      ? const <String>{}
+      : tagFilters.intersection(ref.watch(availableModTagsProvider).toSet());
+  if (activeTags.isNotEmpty) {
+    result = result.where((m) => matchAll
+        ? activeTags.every(m.tags.contains)
+        : m.tags.any(activeTags.contains));
+  }
+
+  final list = result.toList();
+  switch (sort) {
+    case ModSort.added:
+      break; // keep scan/add order
+    case ModSort.nameAsc:
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      break;
+    case ModSort.nameDesc:
+      list.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+      break;
+  }
+  return list;
+});
