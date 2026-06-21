@@ -92,9 +92,14 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   filter the displayed list; consider a chip picker of known tags. In-memory only. Shares the
   toolbar with sorting (#11).
 
-- [ ] **13. Group the ALL-mods list by character/category**
+- [x] **13. Group the ALL-mods list by character/category** ✅
   The ALL view is a flat list — add section headers grouping by character (or category, see
   #14). Sort within group (#11), hide empty groups when filtering (#12). *Relates to #14.*
+  *Done:* ALL tab now renders per-character sections via `_buildGroupedModsView` /
+  `_buildSectionHeader` (`▾ ── Label (count) ───` separator), roster-ordered groups with a
+  trailing "Other" group for uncategorized mods, within-group sort honoured, empty groups
+  hidden under filters. Section headers are clickable to collapse/expand (in-memory state,
+  `_collapsedGroups`). Other tabs stay a flat grid.
 
 - [ ] **14. Support non-character categories (rename characters → categories)**
   *Larger / plan first.* Everything is keyed to ZZZ characters today (`CharacterInfo`, the

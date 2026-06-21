@@ -53,6 +53,7 @@
   "mods": {
     "favorites": "Favorites",
     "all": "ALL",
+    "uncategorized": "Other",
     "loading": {
       "title": "Loading mods..."
     },

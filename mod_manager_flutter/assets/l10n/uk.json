@@ -53,6 +53,7 @@
   "mods": {
     "favorites": "Улюблені",
     "all": "УСІ",
+    "uncategorized": "Інше",
     "loading": {
       "title": "Завантаження модів..."
     },

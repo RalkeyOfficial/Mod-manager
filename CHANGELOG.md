@@ -50,6 +50,13 @@ type (Added / Changed / Fixed / Removed).
 
 ## Added
 
+- The **ALL** tab now groups its mods into per-character sections, each under a
+  `▾ ── Character (count) ───` separator header that doubles as the section
+  label. Groups follow the roster order, mods with no recognised character fall
+  into a trailing "Other" group, the active sort orders cards within each group,
+  and filtering hides groups that end up empty. Each header is clickable to
+  **collapse/expand** its section (chevron indicates state). Other tabs stay a
+  single flat grid.
 - A toolbar above the mods grid to **sort and filter** the current view, all on
   one row: a search box (matches mod name), a sort menu (Default / Name A–Z /
   Name Z–A), a **tags** dropdown (checkbox list of the tags present in the view,
