@@ -8,6 +8,10 @@ type (Added / Changed / Fixed / Removed).
 
 ## Fixed
 
+- The window now opens at its proper size from the first frame on Linux.
+  Previously it appeared as a tiny square and then grew to full size, which
+  centered it based on the small size and pushed content off-screen (the Linux
+  runner wasn't giving the window a default size before showing it).
 - Character portraits now resolve by their asset filename, so characters whose
   image differs from their id (e.g. Billy → `billy_herinkton.png`) show the real
   portrait instead of a person placeholder — in the sidebar, the edit-dialog

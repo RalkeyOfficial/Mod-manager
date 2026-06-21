@@ -48,6 +48,11 @@ static void my_application_activate(GApplication *application)
     }
   }
 
+  // Start at a sensible size before the window is shown so it doesn't appear
+  // as a tiny square and then grow (window_manager restores the saved size
+  // afterwards). Mirrors AppConstants.defaultWindow{Width,Height}.
+  gtk_window_set_default_size(window, 1400, 900);
+
   gtk_widget_show(GTK_WIDGET(window));
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
