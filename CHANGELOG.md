@@ -8,6 +8,11 @@ type (Added / Changed / Fixed / Removed).
 
 ## Fixed
 
+- Scrollbar crash when scrolling around a mods-tab switch ("ScrollController
+  attached to more than one ScrollPosition"). The mods list shared a single
+  scroll controller across the tab-change animation, so the outgoing and
+  incoming lists were briefly attached to the same controller — which the
+  desktop scrollbar forbids. Each list now owns its own scroll controller.
 - Performance: saving a mod edit is now near-instant. Previously every save ran
   a full keybind rescan that re-parsed **every** mod's `.ini` files from disk —
   and re-parsed the same mod several times (it appears in the Favorites, ALL,

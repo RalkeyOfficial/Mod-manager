@@ -37,14 +37,14 @@ class _EditImage {
   final Uint8List? pastedBytes;
 
   const _EditImage.existing(this.existingPath)
-      : pickedPath = null,
-        pastedBytes = null;
+    : pickedPath = null,
+      pastedBytes = null;
   const _EditImage.picked(this.pickedPath)
-      : existingPath = null,
-        pastedBytes = null;
+    : existingPath = null,
+      pastedBytes = null;
   const _EditImage.pasted(this.pastedBytes)
-      : existingPath = null,
-        pickedPath = null;
+    : existingPath = null,
+      pickedPath = null;
 }
 
 class ModsScreen extends ConsumerStatefulWidget {
@@ -84,7 +84,6 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
   // Focus node для обробки клавіатури
   final FocusNode _focusNode = FocusNode();
-  late final ScrollController _modsScrollController = ScrollController();
 
   // Mods list sorting & filtering live in providers (see state_providers.dart);
   // the toolbar UI lives in [ModsToolbar].
@@ -128,7 +127,6 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     _rebuildDebounce?.cancel();
     _characterSelectionDebounce?.cancel();
     _focusNode.dispose();
-    _modsScrollController.dispose();
     super.dispose();
   }
 
@@ -257,7 +255,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       // Збагачуємо персонажів keybinds з INI файлів
       try {
         final modManagerService = await ApiService.getModManagerService();
-        characters = await modManagerService.enrichCharactersWithKeybinds(characters);
+        characters = await modManagerService.enrichCharactersWithKeybinds(
+          characters,
+        );
       } catch (e) {
         print('Failed to load keybinds: $e');
         // Продовжуємо без keybinds у разі помилки
@@ -689,14 +689,21 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         }
 
         final modFolder = path.join(modsPath, mod.id);
-        final relPath = await modManager.metadataService
-            .addImageBytes(modFolder, imageBytes, extension: 'png');
+        final relPath = await modManager.metadataService.addImageBytes(
+          modFolder,
+          imageBytes,
+          extension: 'png',
+        );
         if (relPath == null) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(loc.t('mods.errors.generic',
-                    params: {'message': 'image write failed'})),
+                content: Text(
+                  loc.t(
+                    'mods.errors.generic',
+                    params: {'message': 'image write failed'},
+                  ),
+                ),
                 backgroundColor: Colors.red,
               ),
             );
@@ -710,7 +717,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           imagePath,
           ...mod.images.where((i) => i != imagePath),
         ];
-        final updatedMod = mod.copyWith(images: updatedImages, imagePath: imagePath);
+        final updatedMod = mod.copyWith(
+          images: updatedImages,
+          imagePath: imagePath,
+        );
         await ApiService.updateMod(updatedMod);
 
         // Очищаємо кеш зображення
@@ -725,7 +735,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           final updatedCharacters = characters.map((char) {
             final updatedSkins = char.skins.map((skin) {
               if (skin.id == mod.id) {
-                return skin.copyWith(images: updatedImages, imagePath: imagePath);
+                return skin.copyWith(
+                  images: updatedImages,
+                  imagePath: imagePath,
+                );
               }
               return skin;
             }).toList();
@@ -840,27 +853,84 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           width: 400,
           child: SingleChildScrollView(
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            Text(
-              mod.name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              loc.t('mods.dialog.character_tag'),
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            ValueListenableBuilder<String>(
-              valueListenable: selectedChar,
-              builder: (context, value, _) {
-                return DropdownButtonFormField<String>(
-                  value: zzzCharacters.contains(value)
-                      ? value
-                      : zzzCharacters.first,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mod.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  loc.t('mods.dialog.character_tag'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                ValueListenableBuilder<String>(
+                  valueListenable: selectedChar,
+                  builder: (context, value, _) {
+                    return DropdownButtonFormField<String>(
+                      value: zzzCharacters.contains(value)
+                          ? value
+                          : zzzCharacters.first,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        isDense: true,
+                      ),
+                      items: zzzCharacters.map((charId) {
+                        return DropdownMenuItem(
+                          value: charId,
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: Image.asset(
+                                  'assets/characters/$charId.png',
+                                  width: 24,
+                                  height: 24,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                    Icons.person,
+                                    size: 24,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(getCharacterDisplayName(charId)),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (newValue) {
+                        if (newValue != null) {
+                          selectedChar.value = newValue;
+                        }
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  loc.t('mods.dialog.source_url'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: urlController,
+                  keyboardType: TextInputType.url,
                   decoration: InputDecoration(
+                    hintText: loc.t('mods.dialog.source_url_hint'),
+                    prefixIcon: const Icon(Icons.link, size: 20),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -870,180 +940,132 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                     ),
                     isDense: true,
                   ),
-                  items: zzzCharacters.map((charId) {
-                    return DropdownMenuItem(
-                      value: charId,
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: Image.asset(
-                              'assets/characters/$charId.png',
-                              width: 24,
-                              height: 24,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.person,
-                                size: 24,
-                                color: Colors.grey[600],
-                              ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  loc.t('mods.dialog.description'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: descController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: loc.t('mods.dialog.description_hint'),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  loc.t('mods.dialog.tags'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: tagController,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: addTag,
+                  decoration: InputDecoration(
+                    hintText: loc.t('mods.dialog.tag_add_hint'),
+                    prefixIcon: const Icon(Icons.label_outline, size: 20),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.add, size: 20),
+                      tooltip: loc.t('mods.dialog.tag_add'),
+                      onPressed: () => addTag(tagController.text),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ValueListenableBuilder<List<String>>(
+                  valueListenable: tags,
+                  builder: (context, value, _) {
+                    if (value.isEmpty) return const SizedBox.shrink();
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: value
+                          .map(
+                            (tag) => Chip(
+                              label: Text(tag),
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              onDeleted: () {
+                                tags.value = List<String>.from(value)
+                                  ..remove(tag);
+                              },
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(getCharacterDisplayName(charId)),
-                        ],
-                      ),
+                          )
+                          .toList(),
                     );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    if (newValue != null) {
-                      selectedChar.value = newValue;
-                    }
                   },
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            Text(
-              loc.t('mods.dialog.source_url'),
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: urlController,
-              keyboardType: TextInputType.url,
-              decoration: InputDecoration(
-                hintText: loc.t('mods.dialog.source_url_hint'),
-                prefixIcon: const Icon(Icons.link, size: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+                const SizedBox(height: 16),
+                Text(
+                  loc.t('mods.dialog.images'),
+                  style: const TextStyle(fontSize: 13),
                 ),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              loc.t('mods.dialog.description'),
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: descController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: loc.t('mods.dialog.description_hint'),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 8),
+                ValueListenableBuilder<List<_EditImage>>(
+                  valueListenable: images,
+                  builder: (context, value, _) {
+                    if (value.isEmpty) {
+                      return Text(
+                        loc.t('mods.details.no_images'),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      );
+                    }
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (int i = 0; i < value.length; i++)
+                          _editImageThumb(
+                            value[i],
+                            isCover: i == 0,
+                            onSetCover: () => setCover(value[i]),
+                            onRemove: () => removeImage(value[i]),
+                          ),
+                      ],
+                    );
+                  },
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              loc.t('mods.dialog.tags'),
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: tagController,
-              textInputAction: TextInputAction.done,
-              onSubmitted: addTag,
-              decoration: InputDecoration(
-                hintText: loc.t('mods.dialog.tag_add_hint'),
-                prefixIcon: const Icon(Icons.label_outline, size: 20),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.add, size: 20),
-                  tooltip: loc.t('mods.dialog.tag_add'),
-                  onPressed: () => addTag(tagController.text),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ValueListenableBuilder<List<String>>(
-              valueListenable: tags,
-              builder: (context, value, _) {
-                if (value.isEmpty) return const SizedBox.shrink();
-                return Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: value
-                      .map((tag) => Chip(
-                            label: Text(tag),
-                            visualDensity: VisualDensity.compact,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            onDeleted: () {
-                              tags.value = List<String>.from(value)..remove(tag);
-                            },
-                          ))
-                      .toList(),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            Text(
-              loc.t('mods.dialog.images'),
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            ValueListenableBuilder<List<_EditImage>>(
-              valueListenable: images,
-              builder: (context, value, _) {
-                if (value.isEmpty) {
-                  return Text(
-                    loc.t('mods.details.no_images'),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  );
-                }
-                return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                const SizedBox(height: 8),
+                Row(
                   children: [
-                    for (int i = 0; i < value.length; i++)
-                      _editImageThumb(
-                        value[i],
-                        isCover: i == 0,
-                        onSetCover: () => setCover(value[i]),
-                        onRemove: () => removeImage(value[i]),
+                    OutlinedButton.icon(
+                      onPressed: pasteImageInto,
+                      icon: const Icon(Icons.content_paste, size: 16),
+                      label: Text(loc.t('mods.dialog.image_paste')),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: pickImagesInto,
+                      icon: const Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 16,
                       ),
+                      label: Text(loc.t('mods.dialog.image_add')),
+                    ),
                   ],
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: pasteImageInto,
-                  icon: const Icon(Icons.content_paste, size: 16),
-                  label: Text(loc.t('mods.dialog.image_paste')),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: pickImagesInto,
-                  icon: const Icon(Icons.add_photo_alternate_outlined, size: 16),
-                  label: Text(loc.t('mods.dialog.image_add')),
                 ),
               ],
             ),
-          ],
-          ),
           ),
         ),
         actions: [
@@ -1058,14 +1080,19 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
               // 1) Persist everything (the actual save — fast disk writes):
               //    commit staged images, then the metadata + character tag.
-              final committedImages = await _commitGalleryImages(mod, images.value);
-              await ApiService.updateMod(mod.copyWith(
-                characterId: selectedChar.value,
-                sourceUrl: urlController.text.trim(),
-                description: descController.text.trim(),
-                tags: tags.value,
-                images: committedImages,
-              ));
+              final committedImages = await _commitGalleryImages(
+                mod,
+                images.value,
+              );
+              await ApiService.updateMod(
+                mod.copyWith(
+                  characterId: selectedChar.value,
+                  sourceUrl: urlController.text.trim(),
+                  description: descController.text.trim(),
+                  tags: tags.value,
+                  images: committedImages,
+                ),
+              );
               await ApiService.setModCharacter(mod.id, selectedChar.value);
 
               if (!mounted) return;
@@ -1095,8 +1122,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     final validKeybinds = (mod.keybinds ?? [])
         .where((kb) => kb.keyValue != null && kb.keyValue!.isNotEmpty)
         .toList();
-    final hasCharacter = mod.characterId.isNotEmpty && mod.characterId != 'unknown';
-    final hasDescription = mod.description != null && mod.description!.isNotEmpty;
+    final hasCharacter =
+        mod.characterId.isNotEmpty && mod.characterId != 'unknown';
+    final hasDescription =
+        mod.description != null && mod.description!.isNotEmpty;
     final hasUrl = mod.sourceUrl != null && mod.sourceUrl!.isNotEmpty;
 
     showDialog(
@@ -1131,10 +1160,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Left: gallery fills the available vertical space.
-                SizedBox(
-                  width: 300,
-                  child: _detailGallery(mod, selectedImage),
-                ),
+                SizedBox(width: 300, child: _detailGallery(mod, selectedImage)),
                 const SizedBox(width: 20),
                 // Right: scrollable info column.
                 Expanded(
@@ -1154,14 +1180,19 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                                   height: 28,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => Icon(
-                                      Icons.person, size: 28, color: Colors.grey[600]),
+                                    Icons.person,
+                                    size: 28,
+                                    color: Colors.grey[600],
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 getCharacterDisplayName(mod.characterId),
                                 style: const TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w500),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
@@ -1190,12 +1221,14 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                             spacing: 6,
                             runSpacing: 6,
                             children: mod.tags
-                                .map((t) => Chip(
-                                      label: Text(t),
-                                      visualDensity: VisualDensity.compact,
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ))
+                                .map(
+                                  (t) => Chip(
+                                    label: Text(t),
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                )
                                 .toList(),
                           ),
                           const SizedBox(height: 16),
@@ -1207,8 +1240,11 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                             onTap: () => _openModLink(mod),
                             child: Row(
                               children: [
-                                const Icon(Icons.open_in_new,
-                                    size: 16, color: Color(0xFF6366F1)),
+                                const Icon(
+                                  Icons.open_in_new,
+                                  size: 16,
+                                  color: Color(0xFF6366F1),
+                                ),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
@@ -1231,8 +1267,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                           Wrap(
                             spacing: 6,
                             runSpacing: 6,
-                            children:
-                                validKeybinds.map(_detailKeybindChip).toList(),
+                            children: validKeybinds
+                                .map(_detailKeybindChip)
+                                .toList(),
                           ),
                         ],
                       ],
@@ -1266,8 +1303,11 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.image_not_supported_outlined,
-                  size: 40, color: Colors.grey[600]),
+              Icon(
+                Icons.image_not_supported_outlined,
+                size: 40,
+                color: Colors.grey[600],
+              ),
               const SizedBox(height: 8),
               Text(
                 loc.t('mods.details.no_images'),
@@ -1313,7 +1353,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.25),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF334155), width: 1),
+                          border: Border.all(
+                            color: const Color(0xFF334155),
+                            width: 1,
+                          ),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: Image.file(
@@ -1360,7 +1403,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                             child: Image.file(
                               File(mod.images[i]),
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => _detailImagePlaceholder(52),
+                              errorBuilder: (_, __, ___) =>
+                                  _detailImagePlaceholder(52),
                             ),
                           ),
                         );
@@ -1477,7 +1521,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
   /// bytes into the mod folder, deletes removed images **only when they are
   /// managed copies** (inside `.zzz-mod-manager/images/` — never the mod's own
   /// files like a shipped Preview.png), and returns the final absolute paths.
-  Future<List<String>> _commitGalleryImages(ModInfo mod, List<_EditImage> items) async {
+  Future<List<String>> _commitGalleryImages(
+    ModInfo mod,
+    List<_EditImage> items,
+  ) async {
     final modManager = await ApiService.getModManagerService();
     final modsPath = modManager.modsPath;
     if (modsPath == null) return mod.images;
@@ -1491,12 +1538,16 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         finalAbs.add(item.existingPath!);
         keptExisting.add(item.existingPath!);
       } else if (item.pastedBytes != null) {
-        final rel = await modManager.metadataService
-            .addImageBytes(folder, item.pastedBytes!);
+        final rel = await modManager.metadataService.addImageBytes(
+          folder,
+          item.pastedBytes!,
+        );
         if (rel != null) finalAbs.add(path.join(folder, rel));
       } else if (item.pickedPath != null) {
-        final rel = await modManager.metadataService
-            .importImageFile(folder, item.pickedPath!);
+        final rel = await modManager.metadataService.importImageFile(
+          folder,
+          item.pickedPath!,
+        );
         if (rel != null) finalAbs.add(path.join(folder, rel));
       }
     }
@@ -1621,7 +1672,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(loc.t('mods.errors.generic', params: {'message': e.toString()})),
+            content: Text(
+              loc.t('mods.errors.generic', params: {'message': e.toString()}),
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -1641,7 +1694,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                loc.t('mods.keybinds.edit_title', params: {'name': keybind.displayName}),
+                loc.t(
+                  'mods.keybinds.edit_title',
+                  params: {'name': keybind.displayName},
+                ),
                 style: const TextStyle(fontSize: 18),
               ),
             ),
@@ -1661,7 +1717,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               decoration: InputDecoration(
                 labelText: loc.t('mods.keybinds.field_label'),
                 hintText: loc.t('mods.keybinds.field_hint'),
-                prefixIcon: const Icon(Icons.keyboard, color: Color(0xFFFBBF24)),
+                prefixIcon: const Icon(
+                  Icons.keyboard,
+                  color: Color(0xFFFBBF24),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: Color(0xFF334155)),
@@ -1672,7 +1731,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFFBBF24), width: 2),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFFBBF24),
+                    width: 2,
+                  ),
                 ),
               ),
               autofocus: true,
@@ -1699,7 +1761,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                   const SizedBox(height: 6),
                   Text(
                     loc.t('mods.keybinds.common_list'),
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF94A3B8),
+                    ),
                   ),
                 ],
               ),
@@ -1728,11 +1793,15 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     );
   }
 
-  Future<void> _saveKeybindChange(ModInfo mod, KeybindInfo keybind, String newKey) async {
+  Future<void> _saveKeybindChange(
+    ModInfo mod,
+    KeybindInfo keybind,
+    String newKey,
+  ) async {
     try {
       final modManagerService = await ApiService.getModManagerService();
       final modsPath = modManagerService.modsPath;
-      
+
       if (modsPath == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1745,7 +1814,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       // Знаходимо INI файл моду
       final modPath = path.join(modsPath, mod.id);
       final modDir = Directory(modPath);
-      
+
       if (!await modDir.exists()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1758,7 +1827,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       // Шукаємо INI файли
       final iniFiles = await modDir
           .list(recursive: true)
-          .where((entity) => entity is File && entity.path.toLowerCase().endsWith('.ini'))
+          .where(
+            (entity) =>
+                entity is File && entity.path.toLowerCase().endsWith('.ini'),
+          )
           .cast<File>()
           .toList();
 
@@ -1780,20 +1852,21 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
         for (int i = 0; i < lines.length; i++) {
           final line = lines[i].trim();
-          
+
           // Перевіряємо чи це наша секція
           if (line.toLowerCase() == '[${keybind.section.toLowerCase()}]') {
             inTargetSection = true;
             continue;
           }
-          
+
           // Перевіряємо чи почалась нова секція
           if (line.startsWith('[') && line.endsWith(']')) {
             inTargetSection = false;
           }
-          
+
           // Якщо ми в потрібній секції і знайшли рядок з key (key= або Key =)
-          if (inTargetSection && RegExp(r'^key\s*=', caseSensitive: false).hasMatch(line)) {
+          if (inTargetSection &&
+              RegExp(r'^key\s*=', caseSensitive: false).hasMatch(line)) {
             lines[i] = 'key = $newKey';
             updated = true;
             break;
@@ -1808,8 +1881,12 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(loc.t('mods.keybinds.updated',
-                    params: {'name': keybind.displayName, 'key': newKey})),
+                content: Text(
+                  loc.t(
+                    'mods.keybinds.updated',
+                    params: {'name': keybind.displayName, 'key': newKey},
+                  ),
+                ),
                 backgroundColor: const Color(0xFF10B981),
               ),
             );
@@ -1821,7 +1898,14 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       print('Error saving keybind: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.t('mods.keybinds.error_save', params: {'message': e.toString()}))),
+          SnackBar(
+            content: Text(
+              loc.t(
+                'mods.keybinds.error_save',
+                params: {'message': e.toString()},
+              ),
+            ),
+          ),
         );
       }
     }
@@ -1866,7 +1950,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -1895,7 +1982,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                         ),
                         const SizedBox(width: 10),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF0F172A),
                             borderRadius: BorderRadius.circular(6),
@@ -2006,8 +2096,12 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               children: [
                 const Icon(Icons.keyboard_outlined, size: 18),
                 const SizedBox(width: 8),
-                Text(loc.t('mods.context_menu.edit_keybinds',
-                    params: {'count': '${mod.keybinds!.length}'})),
+                Text(
+                  loc.t(
+                    'mods.context_menu.edit_keybinds',
+                    params: {'count': '${mod.keybinds!.length}'},
+                  ),
+                ),
               ],
             ),
             onTap: () {
@@ -2392,112 +2486,117 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                           // drives the no-results / add-card states).
                           ref.watch(modFiltersActiveProvider);
                           return currentSkins.isEmpty && characters.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.inbox_outlined,
-                                    size: 64,
-                                    color: Colors.grey[400],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    loc.t('mods.empty.title'),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  SizedBox(
-                                    width: 250,
-                                    height: 350,
-                                    child: _buildAddModCard(),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : (_isFiltering && visibleSkins.isEmpty)
-                          ? _buildNoResults()
-                          : isAllView
-                          ? _buildGroupedModsView(visibleSkins)
-                          : AnimationLimiter(
-                              child: ScrollConfiguration(
-                                behavior: ScrollConfiguration.of(context)
-                                    .copyWith(
-                                      dragDevices: {
-                                        PointerDeviceKind.touch,
-                                        PointerDeviceKind.mouse,
-                                        PointerDeviceKind.trackpad,
-                                        PointerDeviceKind.stylus,
-                                      },
-                                      physics: const BouncingScrollPhysics(),
-                                    ),
-                                child: GridView.builder(
-                                  controller: _modsScrollController,
-                                  // Vertical padding leaves room for the cards'
-                                  // hover lift/scale so the top row isn't clipped.
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: AppConstants.smallPadding,
-                                    vertical: 14,
-                                  ),
-                                  gridDelegate:
-                                      const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 6,
-                                        childAspectRatio: 0.7,
-                                        crossAxisSpacing: 16,
-                                        mainAxisSpacing: 16,
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.inbox_outlined,
+                                        size: 64,
+                                        color: Colors.grey[400],
                                       ),
-                                  // The "Add" card is hidden while filtering so
-                                  // a no-match search doesn't show just the +.
-                                  itemCount:
-                                      visibleSkins.length +
-                                      (_isFiltering ? 0 : 1),
-                                  itemBuilder: (context, index) {
-                                    // Кнопка "Додати" в кінці
-                                    if (index == visibleSkins.length) {
-                                      return AnimationConfiguration.staggeredGrid(
-                                        key: const ValueKey('add_mod_card'),
-                                        position: index,
-                                        columnCount: 4,
-                                        duration: const Duration(
-                                          milliseconds: 500,
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        loc.t('mods.empty.title'),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey[600],
                                         ),
-                                        child: ScaleAnimation(
-                                          scale: 0.5,
-                                          curve: Curves.easeOutBack,
-                                          child: FadeInAnimation(
-                                            curve: Curves.easeOut,
-                                            child: _buildAddModCard(),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      SizedBox(
+                                        width: 250,
+                                        height: 350,
+                                        child: _buildAddModCard(),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : (_isFiltering && visibleSkins.isEmpty)
+                              ? _buildNoResults()
+                              : isAllView
+                              ? _buildGroupedModsView(visibleSkins)
+                              : _OwnScrollController(
+                                  builder: (context, scrollController) => AnimationLimiter(
+                                    child: ScrollConfiguration(
+                                      behavior: ScrollConfiguration.of(context)
+                                          .copyWith(
+                                            dragDevices: {
+                                              PointerDeviceKind.touch,
+                                              PointerDeviceKind.mouse,
+                                              PointerDeviceKind.trackpad,
+                                              PointerDeviceKind.stylus,
+                                            },
+                                            physics:
+                                                const BouncingScrollPhysics(),
                                           ),
+                                      child: GridView.builder(
+                                        controller: scrollController,
+                                        // Vertical padding leaves room for the cards'
+                                        // hover lift/scale so the top row isn't clipped.
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: AppConstants.smallPadding,
+                                          vertical: 14,
                                         ),
-                                      );
-                                    }
+                                        gridDelegate:
+                                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount: 6,
+                                              childAspectRatio: 0.7,
+                                              crossAxisSpacing: 16,
+                                              mainAxisSpacing: 16,
+                                            ),
+                                        // The "Add" card is hidden while filtering so
+                                        // a no-match search doesn't show just the +.
+                                        itemCount:
+                                            visibleSkins.length +
+                                            (_isFiltering ? 0 : 1),
+                                        itemBuilder: (context, index) {
+                                          // Кнопка "Додати" в кінці
+                                          if (index == visibleSkins.length) {
+                                            return AnimationConfiguration.staggeredGrid(
+                                              key: const ValueKey(
+                                                'add_mod_card',
+                                              ),
+                                              position: index,
+                                              columnCount: 4,
+                                              duration: const Duration(
+                                                milliseconds: 500,
+                                              ),
+                                              child: ScaleAnimation(
+                                                scale: 0.5,
+                                                curve: Curves.easeOutBack,
+                                                child: FadeInAnimation(
+                                                  curve: Curves.easeOut,
+                                                  child: _buildAddModCard(),
+                                                ),
+                                              ),
+                                            );
+                                          }
 
-                                    final mod = visibleSkins[index];
-                                    return AnimationConfiguration.staggeredGrid(
-                                      key: ValueKey(
-                                        'mod_${mod.id}_${mod.isActive}',
+                                          final mod = visibleSkins[index];
+                                          return AnimationConfiguration.staggeredGrid(
+                                            key: ValueKey(
+                                              'mod_${mod.id}_${mod.isActive}',
+                                            ),
+                                            position: index,
+                                            columnCount: 4,
+                                            duration: const Duration(
+                                              milliseconds: 500,
+                                            ),
+                                            child: ScaleAnimation(
+                                              scale: 0.5,
+                                              curve: Curves.easeOutBack,
+                                              child: FadeInAnimation(
+                                                curve: Curves.easeOut,
+                                                child: _buildModCard(mod),
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       ),
-                                      position: index,
-                                      columnCount: 4,
-                                      duration: const Duration(
-                                        milliseconds: 500,
-                                      ),
-                                      child: ScaleAnimation(
-                                        scale: 0.5,
-                                        curve: Curves.easeOutBack,
-                                        child: FadeInAnimation(
-                                          curve: Curves.easeOut,
-                                          child: _buildModCard(mod),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            );
+                                    ),
+                                  ),
+                                );
                         },
                       ),
                     );
@@ -2701,20 +2800,22 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       );
     }
 
-    return AnimationLimiter(
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          dragDevices: {
-            PointerDeviceKind.touch,
-            PointerDeviceKind.mouse,
-            PointerDeviceKind.trackpad,
-            PointerDeviceKind.stylus,
-          },
-          physics: const BouncingScrollPhysics(),
-        ),
-        child: CustomScrollView(
-          controller: _modsScrollController,
-          slivers: slivers,
+    return _OwnScrollController(
+      builder: (context, scrollController) => AnimationLimiter(
+        child: ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(
+            dragDevices: {
+              PointerDeviceKind.touch,
+              PointerDeviceKind.mouse,
+              PointerDeviceKind.trackpad,
+              PointerDeviceKind.stylus,
+            },
+            physics: const BouncingScrollPhysics(),
+          ),
+          child: CustomScrollView(
+            controller: scrollController,
+            slivers: slivers,
+          ),
         ),
       ),
     );
@@ -3044,7 +3145,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       final archivesToExtract = <XFile>[];
       final successfullyExtractedArchives = <String>[];
       final tempFoldersToCleanup = <String>[];
-      
+
       for (final file in files) {
         // Перевіряємо чи це архів
         if (ArchiveService.isArchiveFile(file.path)) {
@@ -3061,31 +3162,37 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
       // Розархівуємо архіви
       if (archivesToExtract.isNotEmpty) {
-        print('ModsScreen: Розархівування ${archivesToExtract.length} архівів...');
-        
+        print(
+          'ModsScreen: Розархівування ${archivesToExtract.length} архівів...',
+        );
+
         for (final archiveFile in archivesToExtract) {
           final file = File(archiveFile.path);
-          
+
           if (!await file.exists()) {
             print('ModsScreen: Файл не існує: ${archiveFile.path}');
             continue;
           }
-          
-          final result = await ArchiveService.extractArchive(
-            archiveFile: file,
-          );
-          
+
+          final result = await ArchiveService.extractArchive(archiveFile: file);
+
           if (result.success && result.extractedFolders != null) {
             folderPaths.addAll(result.extractedFolders!);
             tempFoldersToCleanup.addAll(result.extractedFolders!);
             successfullyExtractedArchives.add(archiveFile.path);
-            print('ModsScreen: Розархівовано ${result.extractedFolders!.length} папок з ${archiveFile.name}');
+            print(
+              'ModsScreen: Розархівовано ${result.extractedFolders!.length} папок з ${archiveFile.name}',
+            );
           } else {
-            print('ModsScreen: Помилка розархівування ${archiveFile.name}: ${result.error}');
+            print(
+              'ModsScreen: Помилка розархівування ${archiveFile.name}: ${result.error}',
+            );
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Помилка розархівування ${archiveFile.name}: ${result.error}'),
+                  content: Text(
+                    'Помилка розархівування ${archiveFile.name}: ${result.error}',
+                  ),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -3173,7 +3280,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       if (importedMods.isEmpty) {
         // Очищаємо тимчасові папки якщо імпорт не вдався
         if (tempFoldersToCleanup.isNotEmpty) {
-          print('ModsScreen: Очищення ${tempFoldersToCleanup.length} тимчасових папок (імпорт не вдався)...');
+          print(
+            'ModsScreen: Очищення ${tempFoldersToCleanup.length} тимчасових папок (імпорт не вдався)...',
+          );
           for (final tempPath in tempFoldersToCleanup) {
             try {
               final tempDir = Directory(tempPath);
@@ -3181,15 +3290,19 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 final parentDir = tempDir.parent;
                 if (parentDir.path.contains('zzz_archive_extract_')) {
                   await parentDir.delete(recursive: true);
-                  print('ModsScreen: Видалено тимчасову директорію: ${parentDir.path}');
+                  print(
+                    'ModsScreen: Видалено тимчасову директорію: ${parentDir.path}',
+                  );
                 }
               }
             } catch (e) {
-              print('ModsScreen: Помилка очищення тимчасової папки $tempPath: $e');
+              print(
+                'ModsScreen: Помилка очищення тимчасової папки $tempPath: $e',
+              );
             }
           }
         }
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -3225,7 +3338,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
       // Видаляємо успішно імпортовані архіви
       if (successfullyExtractedArchives.isNotEmpty) {
-        print('ModsScreen: Видалення ${successfullyExtractedArchives.length} архівів...');
+        print(
+          'ModsScreen: Видалення ${successfullyExtractedArchives.length} архівів...',
+        );
         for (final archivePath in successfullyExtractedArchives) {
           try {
             final archiveFile = File(archivePath);
@@ -3241,7 +3356,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
       // Очищаємо тимчасові папки після успішного імпорту
       if (tempFoldersToCleanup.isNotEmpty) {
-        print('ModsScreen: Очищення ${tempFoldersToCleanup.length} тимчасових папок...');
+        print(
+          'ModsScreen: Очищення ${tempFoldersToCleanup.length} тимчасових папок...',
+        );
         for (final tempPath in tempFoldersToCleanup) {
           try {
             final tempDir = Directory(tempPath);
@@ -3250,11 +3367,15 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               final parentDir = tempDir.parent;
               if (parentDir.path.contains('zzz_archive_extract_')) {
                 await parentDir.delete(recursive: true);
-                print('ModsScreen: Видалено тимчасову директорію: ${parentDir.path}');
+                print(
+                  'ModsScreen: Видалено тимчасову директорію: ${parentDir.path}',
+                );
               }
             }
           } catch (e) {
-            print('ModsScreen: Помилка очищення тимчасової папки $tempPath: $e');
+            print(
+              'ModsScreen: Помилка очищення тимчасової папки $tempPath: $e',
+            );
           }
         }
       }
@@ -3447,7 +3568,10 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                   Expanded(
                     child: Text(
                       loc.t('mods.dialog.hint'),
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF0EA5E9),
+                      ),
                     ),
                   ),
                 ],
@@ -3549,4 +3673,33 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       }
     }
   }
+}
+
+/// Gives its [builder] a private [ScrollController] tied to this element's
+/// lifetime. The mods grid and the grouped view live inside an
+/// [AnimatedSwitcher], so during a tab transition the outgoing and incoming
+/// lists are briefly mounted together; a shared controller would then have two
+/// ScrollPositions, which the desktop Scrollbar forbids. A controller per
+/// instance keeps each list's position independent.
+class _OwnScrollController extends StatefulWidget {
+  const _OwnScrollController({required this.builder});
+
+  final Widget Function(BuildContext context, ScrollController controller)
+  builder;
+
+  @override
+  State<_OwnScrollController> createState() => _OwnScrollControllerState();
+}
+
+class _OwnScrollControllerState extends State<_OwnScrollController> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _controller);
 }
