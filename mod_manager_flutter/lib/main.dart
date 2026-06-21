@@ -589,6 +589,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
         ),
         child: Row(
           children: [
+            // Left group (icon + title) fills the bar so the window controls
+            // pin to the far right; the title still shrinks/ellipsizes when
+            // there isn't room.
+            Expanded(
+              child: Row(
+                children: [
             const SizedBox(width: 20),
             // App icon/logo with gradient
             Container(
@@ -631,7 +637,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
                 ),
               ),
             ),
-            const Spacer(),
+                ],
+              ),
+            ),
             // Window controls
             _buildWindowButton(
               icon: Icons.remove,
