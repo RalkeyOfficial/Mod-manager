@@ -70,13 +70,14 @@ type (Added / Changed / Fixed / Removed).
 ## Added
 
 - Mods can now be assigned to **non-character categories** — UI, Texture, Audio
-  and Misc — alongside the character roster. Assign one in the edit dialog (the
-  picker lists **Categories** then **Characters**). The four categories are
-  always shown in the top bar (before the characters) so it's clear where
-  non-character mods go; each also gets a section in the grouped ALL view and an
-  icon in the details dialog. Characters, as before, only appear once they have
-  a mod. The picker no longer defaults an unassigned mod to the first character —
-  it shows "No category" instead. Categories are stored in the same place as
+  and Misc — alongside the character roster. Assign one in the edit dialog via a
+  **searchable picker** that opens a window-bounded popup (never clipped) with
+  the categories and a scrollable **grid of character portraits**; type to
+  filter by brief or real name. The four categories are always shown in the top
+  bar (before the characters) so it's clear where non-character mods go; each
+  also gets a section in the grouped ALL view and an icon in the details dialog.
+  Characters, as before, only appear once they have a mod. An unassigned mod
+  shows "No category" rather than defaulting to the first character. Categories are stored in the same place as
   character assignments, so nothing migrates; an older build that doesn't know a
   category id just shows it by its raw id until upgraded.
 - The **ALL** tab now groups its mods into per-character sections, each under a

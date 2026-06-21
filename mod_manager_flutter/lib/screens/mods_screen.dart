@@ -25,6 +25,7 @@ import '../utils/zzz_characters.dart';
 import '../l10n/app_localizations.dart';
 import 'components/mode_toggle_widget.dart';
 import 'components/character_cards_list_widget.dart';
+import 'components/category_picker.dart';
 import 'components/mod_card_widget.dart';
 import 'components/mods_toolbar.dart';
 
@@ -790,23 +791,6 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     }
   }
 
-  /// A non-selectable section header for the edit-dialog category dropdown.
-  /// [value] is a sentinel id ignored by the dropdown's onChanged.
-  DropdownMenuItem<String> _categoryDropdownHeader(String value, String label) {
-    return DropdownMenuItem<String>(
-      value: value,
-      enabled: false,
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey[600],
-        ),
-      ),
-    );
-  }
-
   void _showEditDialog(ModInfo mod) {
     final selectedChar = ValueNotifier<String>(mod.characterId);
     final urlController = TextEditingController(text: mod.sourceUrl ?? '');
@@ -896,80 +880,72 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 ValueListenableBuilder<String>(
                   valueListenable: selectedChar,
                   builder: (context, value, _) {
-                    final isKnown =
-                        zzzCharacters.contains(value) ||
-                        isBuiltInCategory(value);
-                    return DropdownButtonFormField<String>(
-                      value: isKnown ? value : null,
-                      isExpanded: true,
-                      hint: Text(loc.t('mods.dialog.no_category')),
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        isDense: true,
-                      ),
-                      items: [
-                        _categoryDropdownHeader(
-                          '__hdr_cats',
-                          loc.t('categories.section_categories'),
-                        ),
-                        for (final cat in builtInCategories)
-                          DropdownMenuItem(
-                            value: cat.id,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  cat.icon,
-                                  size: 24,
-                                  color: Colors.grey[700],
-                                ),
-                                const SizedBox(width: 8),
-                                Text(loc.t(cat.labelKey)),
-                              ],
-                            ),
+                    final isCategory = isBuiltInCategory(value);
+                    final isCharacter =
+                        !isCategory && characterById(value) != null;
+                    final hasValue = isCategory || isCharacter;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () async {
+                        final picked = await showCategoryPicker(
+                          context,
+                          currentId: value,
+                        );
+                        if (picked != null) selectedChar.value = picked;
+                      },
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        _categoryDropdownHeader(
-                          '__hdr_chars',
-                          loc.t('categories.section_characters'),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          isDense: true,
                         ),
-                        for (final charId in zzzCharacters)
-                          DropdownMenuItem(
-                            value: charId,
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Image.asset(
-                                    'assets/characters/${getCharacterAssetName(charId)}.png',
-                                    width: 24,
-                                    height: 24,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Icon(
-                                      Icons.person,
-                                      size: 24,
-                                      color: Colors.grey[600],
-                                    ),
+                        child: Row(
+                          children: [
+                            if (isCategory)
+                              Icon(
+                                categoryIcon(value),
+                                size: 24,
+                                color: Colors.grey[700],
+                              )
+                            else if (isCharacter)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: Image.asset(
+                                  'assets/characters/${getCharacterAssetName(value)}.png',
+                                  width: 24,
+                                  height: 24,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                    Icons.person,
+                                    size: 24,
+                                    color: Colors.grey[600],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Text(getCharacterDisplayName(charId)),
-                              ],
+                              ),
+                            if (hasValue) const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                hasValue
+                                    ? categoryDisplayName(value, loc)
+                                    : loc.t('mods.dialog.no_category'),
+                                style: TextStyle(
+                                  color: hasValue ? null : Colors.grey[600],
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                      ],
-                      onChanged: (newValue) {
-                        if (newValue == null ||
-                            newValue == '__hdr_chars' ||
-                            newValue == '__hdr_cats') {
-                          return;
-                        }
-                        selectedChar.value = newValue;
-                      },
+                            Icon(
+                              Icons.arrow_drop_down,
+                              color: Colors.grey[600],
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),

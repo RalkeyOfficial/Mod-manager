@@ -108,6 +108,8 @@
       "edit_title": "Edit Mod",
       "character_tag": "Category:",
       "no_category": "No category",
+      "select_category": "Select category",
+      "search_category": "Search characters & categories…",
       "source_url": "Source link:",
       "source_url_hint": "https://gamebanana.com/mods/...",
       "description": "Description:",
