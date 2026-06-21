@@ -2465,7 +2465,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                           ),
                         ),
                         child: Text(
-                          '${characters.length}',
+                          // Count only real characters — exclude the synthetic
+                          // "ALL" entry and the built-in categories.
+                          '${characters.where((c) => c.id != 'all' && !isBuiltInCategory(c.id)).length}',
                           style: TextStyle(
                             fontSize: AppConstants.captionTextSize,
                             color: const Color(

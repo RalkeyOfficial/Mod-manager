@@ -86,7 +86,9 @@ type (Added / Changed / Fixed / Removed).
   filter by brief or real name. The four categories are always shown in the top
   bar (before the characters) so it's clear where non-character mods go; each
   also gets a section in the grouped ALL view and an icon in the details dialog.
-  Characters, as before, only appear once they have a mod. An unassigned mod
+  Characters, as before, only appear once they have a mod, and the sidebar's
+  "Characters" count reflects only characters (not the ALL entry or the
+  categories). An unassigned mod
   shows "No category" rather than defaulting to the first character. Categories are stored in the same place as
   character assignments, so nothing migrates; an older build that doesn't know a
   category id just shows it by its raw id until upgraded.
