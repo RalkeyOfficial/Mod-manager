@@ -50,6 +50,17 @@ class ApiService {
     }
   }
 
+  /// Renames a mod's folder, migrating its active/favorite/category state and
+  /// the active link. Returns false on collision or failure.
+  static Future<bool> renameMod(String oldName, String newName) async {
+    try {
+      await initialize();
+      return await _modManager!.renameMod(oldName, newName);
+    } catch (e) {
+      throw Exception('Помилка перейменування моду: $e');
+    }
+  }
+
   /// Активує скін для персонажа, автоматично деактивуючи інші скіни цього персонажа
   static Future<bool> toggleModForCharacter(
     String modId, 

@@ -70,6 +70,11 @@ type (Added / Changed / Fixed / Removed).
 
 ## Added
 
+- Mods can be **renamed** from within the app (right-click → Rename) instead of
+  only via the file manager. Renaming moves the mod's folder and carries its
+  state with it — the active link is recreated if the mod is enabled, and its
+  favorite/category/active state is preserved. The new name is validated (no
+  duplicates or illegal characters).
 - Mods can now be assigned to **non-character categories** — UI, Texture, Audio
   and Misc — alongside the character roster. Assign one in the edit dialog via a
   **searchable picker** that opens a window-bounded popup (never clipped) with

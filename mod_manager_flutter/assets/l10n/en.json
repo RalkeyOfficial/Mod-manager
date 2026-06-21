@@ -77,6 +77,7 @@
       "import_success_title": "Imported successfully!",
       "import_error": "Import error: {message}",
       "tag_saved": "Tag updated",
+      "renamed": "Mod renamed",
       "invalid_url": "Invalid link",
       "paste_error": "Paste error: {message}"
     },
@@ -110,6 +111,11 @@
       "no_category": "No category",
       "select_category": "Select category",
       "search_category": "Search characters & categories…",
+      "rename_title": "Rename mod",
+      "rename_label": "Mod name",
+      "rename_confirm": "Rename",
+      "rename_invalid": "Name contains invalid characters",
+      "rename_exists": "A mod with this name already exists",
       "source_url": "Source link:",
       "source_url_hint": "https://gamebanana.com/mods/...",
       "description": "Description:",
@@ -140,6 +146,7 @@
     "context_menu": {
       "details": "Details",
       "edit": "Edit",
+      "rename": "Rename",
       "edit_keybinds": "Edit keybinds ({count})",
       "open_link": "Open source page",
       "add_image": "Add image",

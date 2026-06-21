@@ -352,6 +352,51 @@ class ModManagerService {
     return isActive ? await deactivateMod(modName) : await activateMod(modName);
   }
 
+  /// Renames a mod's folder and migrates everything keyed to its name: the
+  /// active symlink (if active) and the per-mod config (active/favorite/tag).
+  /// The in-folder metadata travels with the folder, so it needs no migration.
+  /// Returns false on collision or any failure.
+  Future<bool> renameMod(String oldName, String newName) async {
+    try {
+      if (modsPath == null) return false;
+      if (newName == oldName) return true;
+
+      final oldDir = Directory(path.join(modsPath!, oldName));
+      if (!await oldDir.exists()) return false;
+
+      final newPath = path.join(modsPath!, newName);
+      if (await FileSystemEntity.type(newPath) !=
+          FileSystemEntityType.notFound) {
+        return false; // a file/folder with the new name already exists
+      }
+
+      final wasActive = await isModActive(oldName);
+      // Remove the old link first so renaming the source folder doesn't leave a
+      // dangling link in the game's mods folder.
+      if (wasActive && saveModsPath != null) {
+        await _platformService.removeModLink(
+          path.join(saveModsPath!, oldName),
+        );
+      }
+
+      await oldDir.rename(newPath);
+
+      if (wasActive && saveModsPath != null) {
+        await _platformService.createModLink(
+          newPath,
+          path.join(saveModsPath!, newName),
+        );
+      }
+
+      await _configService.migrateModName(oldName, newName);
+      invalidateKeybinds(oldName);
+      return true;
+    } catch (e) {
+      print('ModManagerService: Помилка перейменування мода "$oldName": $e');
+      return false;
+    }
+  }
+
   Future<String?> _findModImage(String modName) async {
     try {
       final modPath = path.join(modsPath!, modName);

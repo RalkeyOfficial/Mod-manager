@@ -166,6 +166,36 @@ class ConfigService {
     }
   }
 
+  /// Migrates all per-mod config keyed by folder name when a mod is renamed
+  /// (active_mods, favorite_mods, mod_character_tags). Preserves state so a
+  /// renamed mod stays active/favorited/tagged.
+  Future<bool> migrateModName(String oldId, String newId) async {
+    try {
+      final active = activeMods;
+      if (active.remove(oldId)) {
+        if (!active.contains(newId)) active.add(newId);
+        await _prefs.setStringList(_keyActiveMods, active);
+      }
+
+      final favorites = favoriteMods;
+      if (favorites.remove(oldId)) {
+        if (!favorites.contains(newId)) favorites.add(newId);
+        await _prefs.setStringList(_keyFavoriteMods, favorites);
+      }
+
+      final tags = modCharacterTags;
+      if (tags.containsKey(oldId)) {
+        tags[newId] = tags.remove(oldId)!;
+        await _prefs.setString(_keyModCharacterTags, jsonEncode(tags));
+      }
+
+      await _saveToFile();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Очищає теги для модів, які більше не існують
   Future<void> cleanupInvalidTags(List<String> validModIds) async {
     try {

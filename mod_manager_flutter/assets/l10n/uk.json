@@ -77,6 +77,7 @@
       "import_success_title": "Успішно імпортовано!",
       "import_error": "Помилка імпорту: {message}",
       "tag_saved": "Tag оновлено",
+      "renamed": "Мод перейменовано",
       "invalid_url": "Невірне посилання",
       "paste_error": "Помилка вставки: {message}"
     },
@@ -110,6 +111,11 @@
       "no_category": "Без категорії",
       "select_category": "Вибрати категорію",
       "search_category": "Пошук персонажів і категорій…",
+      "rename_title": "Перейменувати мод",
+      "rename_label": "Назва моду",
+      "rename_confirm": "Перейменувати",
+      "rename_invalid": "Назва містить недопустимі символи",
+      "rename_exists": "Мод з такою назвою вже існує",
       "source_url": "Посилання на джерело:",
       "source_url_hint": "https://gamebanana.com/mods/...",
       "description": "Опис:",
@@ -140,6 +146,7 @@
     "context_menu": {
       "details": "Деталі",
       "edit": "Редагувати",
+      "rename": "Перейменувати",
       "edit_keybinds": "Редагувати клавіші ({count})",
       "open_link": "Відкрити сторінку джерела",
       "add_image": "Додати фото",
