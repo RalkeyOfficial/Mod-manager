@@ -51,7 +51,6 @@
     "stop_watching": "Зупинити відстежування"
   },
   "mods": {
-    "favorites": "Улюблені",
     "all": "УСІ",
     "uncategorized": "Інше",
     "loading": {
@@ -132,7 +131,6 @@
       "import_auto_tags": "Автоматично визначено теги:",
       "import_ready": "Моди готові до використання!",
       "great": "Чудово!",
-      "favorites": "Улюблені",
       "move_to_character": "Прив'язано до {character}",
       "saving_tag": "Збереження тегу...",
       "mod_assigned": "Мод \"{mod}\" прив'язано до {character}"

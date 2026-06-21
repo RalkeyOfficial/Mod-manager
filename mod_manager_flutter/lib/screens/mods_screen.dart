@@ -214,18 +214,6 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       // Створюємо список персонажів, додаючи "ALL" на початок
       var characters = <CharacterInfo>[];
 
-      final favoritesList = allMods.where((mod) => mod.isFavorite).toList();
-      if (favoritesList.isNotEmpty) {
-        characters.add(
-          CharacterInfo(
-            id: 'favorites',
-            name: loc.t('mods.favorites'),
-            iconPath: null,
-            skins: favoritesList,
-          ),
-        );
-      }
-
       // Додаємо "ALL" персонаж якщо є моди
       if (allMods.isNotEmpty) {
         characters.add(

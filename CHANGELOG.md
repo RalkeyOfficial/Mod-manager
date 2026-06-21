@@ -117,3 +117,10 @@ type (Added / Changed / Fixed / Removed).
 - `CLAUDE.md` — guidance for working in this repo (architecture, dev workflow).
 - `TODO.md` — roadmap of planned bug fixes and features.
 - `CHANGELOG.md` — this file.
+
+## Removed
+
+- The **Favorites** sidebar tab. The toolbar's favorites-only filter covers the
+  same need in any view (the old tab ≡ the ALL view with the favorites filter
+  on), so the dedicated tab was redundant. The per-mod favorite star and the
+  favorites filter are unchanged.

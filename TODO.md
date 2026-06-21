@@ -111,13 +111,10 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   *Deferred:* **user-defined** categories (create/rename/delete + custom icons) — would need a
   persisted category store and management UI. Auto-detection still only covers characters.
 
-- [ ] **15. Remove the redundant "Favorites" category/tab**
-  `loadMods()` (`mod_manager_flutter/lib/screens/mods_screen.dart:216-226`) injects a synthetic
-  `CharacterInfo(id: 'favorites')` at the top of the sidebar whenever any mod is favorited. This
-  is now redundant: the toolbar's **favorites-only** filter (the star toggle →
-  `modFavoritesOnlyProvider`, added with #12) does the same job in any view — the equivalent of
-  the old tab is **ALL + favorites filter on**.
-  *Fix:* drop the `'favorites'` `CharacterInfo` block so it never appears in the sidebar. Then
-  audit fallout: the `mods.favorites` l10n key (`assets/l10n/en.json` + `uk.json`) becomes unused
-  (remove it), and check the selected-index restore logic in `loadMods` and any `id == 'favorites'`
-  special-casing. The per-mod favorite **star** on cards stays — only the standalone tab goes.
+- [x] **15. Remove the redundant "Favorites" category/tab** ✅
+  The synthetic `CharacterInfo(id: 'favorites')` is gone; the toolbar's favorites-only filter
+  covers the same need in any view (old tab ≡ ALL + favorites filter on).
+  *Done:* dropped the `favoritesList` block in `loadMods`, removed the `'favorites'` star-gradient
+  card branch and drag special-casing in `character_cards_list_widget.dart`, and removed the unused
+  `mods.favorites` (+ stale `mods.dialog.favorites`) l10n keys. The selected-index restore falls
+  back to the ALL tab. The per-mod favorite star and the favorites filter are unchanged.

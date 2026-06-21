@@ -10,7 +10,7 @@ import 'zzz_characters.dart';
 /// categories share that one id namespace, so no storage change is needed.
 class CategoryData {
   final String id; // e.g. 'cat_ui' — `cat_` prefix avoids clashing with
-  // character ids (bare names) and synthetic ids ('all'/'favorites'/'__other__').
+  // character ids (bare names) and synthetic ids ('all'/'__other__').
   final String labelKey; // l10n key, e.g. 'categories.ui'
   final IconData icon;
 

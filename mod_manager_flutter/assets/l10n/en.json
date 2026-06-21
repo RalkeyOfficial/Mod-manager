@@ -51,7 +51,6 @@
     "error_opening": "Error opening marketplace"
   },
   "mods": {
-    "favorites": "Favorites",
     "all": "ALL",
     "uncategorized": "Other",
     "loading": {
@@ -132,7 +131,6 @@
       "import_auto_tags": "Auto-detected tags:",
       "import_ready": "Mods are ready to use!",
       "great": "Great!",
-      "favorites": "Favorites",
       "move_to_character": "Assign to {character}",
       "saving_tag": "Saving tag...",
       "mod_assigned": "Mod \"{mod}\" assigned to {character}"

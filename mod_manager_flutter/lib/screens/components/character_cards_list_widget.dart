@@ -126,11 +126,7 @@ class _CharacterCardsListWidgetState
   ) {
     final loc = context.loc;
     return DragTarget<ModInfo>(
-      onWillAccept: (_) => character.id != 'favorites',
       onAcceptWithDetails: (details) async {
-        if (character.id == 'favorites') {
-          return;
-        }
         // Показуємо повідомлення про початок обробки
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -272,19 +268,6 @@ class _CharacterCardsListWidgetState
                             ),
                             child: Icon(
                               Icons.apps,
-                              size: AppConstants.characterCardWidth * 0.5,
-                              color: Colors.white,
-                            ),
-                          )
-                        : character.id == 'favorites'
-                        ? Container(
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFF97316), Color(0xFFFACC15)],
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.star,
                               size: AppConstants.characterCardWidth * 0.5,
                               color: Colors.white,
                             ),
