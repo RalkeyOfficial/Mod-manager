@@ -105,7 +105,8 @@ type (Added / Changed / Fixed / Removed).
   (and on the "no matches" screen) to reset them all at once; and the "Add" card
   is hidden while filtering. Tag selections persist across views but only apply
   to tags present in the current view (and the badge counts only those), so a
-  tag selected elsewhere never silently empties the list.
+  tag selected elsewhere never silently empties the list. The sort choice is
+  remembered across launches; the search/tag/favorites filters reset each launch.
 - Mods support **multiple images** with a small manager in the Edit dialog:
   **Paste** from the clipboard or **Add files** (multi-select), remove via the
   thumbnail's ✕, and tap a thumbnail to make it the cover. Like the other

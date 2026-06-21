@@ -15,6 +15,7 @@ class ConfigService {
   static const String _keyModCharacterTags = 'mod_character_tags';
   static const String _keyFavoriteMods = 'favorite_mods';
   static const String _keyFirstRun = 'first_run';
+  static const String _keySortMode = 'sort_mode';
 
   final SharedPreferences _prefs;
   File? _configFile;
@@ -47,6 +48,7 @@ class ConfigService {
   List<String> get favoriteMods => _prefs.getStringList(_keyFavoriteMods) ?? [];
   String get theme => _prefs.getString(_keyTheme) ?? 'dark-blue';
   String get language => _prefs.getString(_keyLanguage) ?? 'en';
+  String get sortMode => _prefs.getString(_keySortMode) ?? 'added';
   bool get isFirstRun => _prefs.getBool(_keyFirstRun) ?? true;
   
   Map<String, String> get modCharacterTags {
@@ -241,6 +243,16 @@ class ConfigService {
     }
   }
 
+  Future<bool> setSortMode(String mode) async {
+    try {
+      await _prefs.setString(_keySortMode, mode);
+      await _saveToFile();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> setFirstRunComplete() async {
     try {
       await _prefs.setBool(_keyFirstRun, false);
@@ -274,6 +286,9 @@ class ConfigService {
       if (config.containsKey('language')) {
         await _prefs.setString(_keyLanguage, config['language']);
       }
+      if (config.containsKey('sort_mode')) {
+        await _prefs.setString(_keySortMode, config['sort_mode']);
+      }
       if (config.containsKey('mod_character_tags')) {
         await _prefs.setString(_keyModCharacterTags, jsonEncode(config['mod_character_tags']));
       }
@@ -302,6 +317,7 @@ class ConfigService {
         'favorite_mods': favoriteMods,
         'theme': theme,
         'language': language,
+        'sort_mode': sortMode,
         'mod_character_tags': modCharacterTags,
         'first_run': false,
       };

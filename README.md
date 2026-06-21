@@ -61,7 +61,7 @@ The application uses symbolic links to manage mods, which means:
 
 ### Organization & Editing
 
-- **🔎 Search, Sort & Filter**: Search by name, sort (Default / Name A–Z / Z–A), filter by tags (match any/all), and show favorites only
+- **🔎 Search, Sort & Filter**: Search by name, sort (Default / Name A–Z / Z–A, remembered across launches), filter by tags (match any/all), and show favorites only
 - **🗃️ Grouped View**: The ALL view groups mods into collapsible per-category sections
 - **📝 Mod Metadata**: Per-mod description, tags, and a clickable source link (e.g. GameBanana)
 - **🖼️ Image Gallery**: Multiple images per mod (paste or add files, set a cover)

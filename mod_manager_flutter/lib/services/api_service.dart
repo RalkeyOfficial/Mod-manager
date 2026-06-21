@@ -25,6 +25,11 @@ class ApiService {
       _container!
           .read(localeProvider.notifier)
           .state = Locale(localeCode);
+      _container!.read(modSortProvider.notifier).state = ModSort.values
+          .firstWhere(
+            (e) => e.name == _configService!.sortMode,
+            orElse: () => ModSort.added,
+          );
     }
 
     if (_modManager == null) {
@@ -132,6 +137,12 @@ class ApiService {
     await initialize();
     await _configService!.setLanguage(languageCode);
     _container?.read(localeProvider.notifier).state = Locale(languageCode);
+  }
+
+  /// Persists the mods sort mode so it is restored on the next launch.
+  static Future<void> saveSortMode(ModSort sort) async {
+    await initialize();
+    await _configService!.setSortMode(sort.name);
   }
 
   static Future<String> updateConfig({

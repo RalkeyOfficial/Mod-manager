@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/api_service.dart';
 import '../../utils/state_providers.dart';
 
 /// Search + sort + tag-filter + favorites toolbar shown above the mods grid.
@@ -140,7 +141,11 @@ class _ModsToolbarState extends ConsumerState<ModsToolbar> {
     return PopupMenuButton<ModSort>(
       tooltip: loc.t('mods.toolbar.sort'),
       initialValue: sortMode,
-      onSelected: (m) => ref.read(modSortProvider.notifier).state = m,
+      onSelected: (m) {
+        // Update the UI immediately and persist the choice for next launch.
+        ref.read(modSortProvider.notifier).state = m;
+        ApiService.saveSortMode(m);
+      },
       itemBuilder: (_) => [
         for (final m in ModSort.values)
           CheckedPopupMenuItem(
