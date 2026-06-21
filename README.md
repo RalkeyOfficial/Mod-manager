@@ -5,7 +5,7 @@
 [🇺🇦 Українська версія](./README.uk.md)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)
 ![Flutter](https://img.shields.io/badge/Flutter-3.8.1+-02569B.svg)
 
 ## 📋 Table of Contents
@@ -38,8 +38,8 @@ The application uses symbolic links to manage mods, which means:
 ### Core Features
 
 - **🎮 Mod Management**: Easy enable/disable mods with a single click
-- **👥 Character-based Organization**: Automatically organize mods by characters
-- **🏷️ Auto-Tagging**: Automatic character detection from folder names
+- **👥 Category-based Organization**: Organize mods by character or by non-character categories (UI, Texture, Audio, Misc)
+- **🏷️ Auto-Tagging**: Automatic character detection from folder and `.ini` names
 - **📦 Multiple Import Methods**:
   - Drag & Drop folders
   - Paste paths with Ctrl+V
@@ -53,11 +53,27 @@ The application uses symbolic links to manage mods, which means:
 ### Advanced Features
 
 - **📊 Mod Status Display**: Visual indication of active/inactive mods
-- **🖼️ Character Avatars**: 38 character portraits included
+- **🖼️ Character Avatars**: 60 character portraits included
 - **🔍 Smart Tag Detection**: Recognizes all ZZZ characters
 - **💾 Persistent Settings**: Saves your preferences and active mods
 - **🪟 Window Management**: Customizable window size and position
 - **📱 Responsive Design**: Adapts to different screen sizes
+
+### Organization & Editing
+
+- **🔎 Search, Sort & Filter**: Search by name, sort (Default / Name A–Z / Z–A), filter by tags (match any/all), and show favorites only
+- **🗃️ Grouped View**: The ALL view groups mods into collapsible per-category sections
+- **📝 Mod Metadata**: Per-mod description, tags, and a clickable source link (e.g. GameBanana)
+- **🖼️ Image Gallery**: Multiple images per mod (paste or add files, set a cover)
+- **🔍 Details View**: A read-only dialog with a mod's images, category, description, tags, source link, and keybinds
+- **⌨️ Keybinds**: View and edit a mod's keybinds parsed from its `.ini`
+- **✏️ Rename**: Rename a mod from within the app
+- **⭐ Favorites**: Star mods and filter to favorites
+- **🛒 Marketplace**: Browse and download mods from GameBanana in-app
+
+### Platform
+
+- **🐧 Linux** and **🪟 Windows**
 
 ## 📸 Screenshots
 
@@ -334,9 +350,11 @@ ydotool key 67:1 67:0
 #### Activating/Deactivating Mods
 
 1. Click on a mod card to toggle its status
-2. Active mods show with a checkmark (✓)
+2. A mod's on/off state is shown by a toggle on its card
 3. The symbolic link is created/removed automatically
 4. F10 is sent automatically (if configured)
+
+**Right-click a mod** for more actions: Details, Edit, Rename, Add image, Open source page, Edit keybinds, favorite/unfavorite, and activate/deactivate.
 
 ### Character Tags
 
@@ -346,15 +364,14 @@ Tags help organize mods by character. The system automatically detects character
 - `miyabi_winter_outfit` → Tagged as "Miyabi" ✅
 - `Burnice-Casual` → Tagged as "Burnice" ✅
 
-**Manual tagging**: Click the tag button on any mod card to assign/change character tags.
+**Manual assignment**: right-click a mod → **Edit** and pick a character or a non-character category (UI, Texture, Audio, Misc) from the searchable picker. You can also drag a mod onto a category in the top bar.
 
 **Bulk auto-tagging**: Go to Settings → Auto-tagging → "Tag all mods" to automatically tag all untagged mods.
 
 ### Filtering Mods
 
-- Click on a character avatar to show only mods for that character
-- Click "All" to show all mods
-- Use the search feature (if available) to find specific mods
+- Click a category in the top bar to show only its mods, or **All** to show everything grouped into collapsible per-category sections
+- Use the toolbar above the grid to **search** by name, **sort** (Default / Name A–Z / Z–A), **filter by tags** (match any or all), or show **favorites only**
 
 ## ⚙️ Configuration
 
@@ -417,6 +434,12 @@ flutter build linux --release
 # The executable will be in:
 # build/linux/x64/release/bundle/mod_manager_flutter
 ```
+
+### Windows
+
+Windows is supported (`flutter build windows --release`). See
+[BUILD_WINDOWS_GUIDE.md](./BUILD_WINDOWS_GUIDE.md) for the full build, installer,
+and portable-package steps.
 
 ### Build AUR Package
 
