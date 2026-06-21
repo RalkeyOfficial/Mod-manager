@@ -315,8 +315,19 @@ class _MainScreenState extends ConsumerState<MainScreen>
                         ),
                       ],
                     ),
-                    child: Column(
-                      children: [
+                    // Scrollable so the sidebar can't overflow on a very short
+                    // window (e.g. the brief first frame before the window is
+                    // sized); the footer still pins to the bottom at normal
+                    // heights via the min-height + IntrinsicHeight pairing.
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: IntrinsicHeight(
+                            child: Column(
+                              children: [
                         const SizedBox(height: 24),
                         // Toggle button
                         Align(
@@ -496,6 +507,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
                             ),
                           ),
                       ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
