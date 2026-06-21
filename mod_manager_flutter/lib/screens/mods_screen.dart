@@ -177,7 +177,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         // legacy config tag). Fall back to name-based auto-detection.
         String charId = oldMod.characterId;
         if (charId.isEmpty || charId == 'unknown') {
-          for (var char in zzzCharacters) {
+          for (var char in zzzCharacterIds) {
             if (oldMod.id.toLowerCase().contains(char.toLowerCase()) ||
                 oldMod.name.toLowerCase().contains(char.toLowerCase())) {
               charId = char;
@@ -245,7 +245,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
       // Додаємо інших персонажів
       characters.addAll(
-        zzzCharacters
+        zzzCharacterIds
             .map((charId) {
               return CharacterInfo(
                 id: charId,
@@ -2774,7 +2774,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     final orderedIds = <String>[
       for (final cat in builtInCategories)
         if (groups.containsKey(cat.id)) cat.id,
-      for (final id in zzzCharacters)
+      for (final id in zzzCharacterIds)
         if (groups.containsKey(id)) id,
     ];
     final leftover =
@@ -2782,7 +2782,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
             .where(
               (id) =>
                   id != '__other__' &&
-                  !zzzCharacters.contains(id) &&
+                  !zzzCharacterIds.contains(id) &&
                   !isBuiltInCategory(id),
             )
             .toList()

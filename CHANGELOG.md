@@ -38,6 +38,16 @@ type (Added / Changed / Fixed / Removed).
 
 ## Changed
 
+- Character roster updated to the current game version: corrected display names
+  (e.g. "Von Lycaon" → **Lycaon**, "Soldier 0 Anby" → **Soldier 0 - Anby**,
+  "Jufufu" → **Ju Fufu**, Qingyi, Pan Yinhu) and **18 new characters added**
+  (Lucia, Manato, Sigrid, Yidhari, Velina, Norma, Aria, …). The brief name is
+  the primary label shown; each character now also carries its **real name**
+  (used by auto-detection and available for things like GameBanana matching).
+  The whole roster — sidebar, grouping, the edit picker and folder
+  auto-detection — is now driven by a single list, so adding a character is one
+  line. New characters show the fallback icon until art is added to
+  `assets/characters/`.
 - Mod card redesign: removed the redundant character badge (the character is
   already conveyed by the sidebar/title). Clicking the card still toggles the
   mod, with its on/off state shown as a toggle switch (replacing the old ✓/✕

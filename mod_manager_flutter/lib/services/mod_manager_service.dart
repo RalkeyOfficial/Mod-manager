@@ -7,6 +7,7 @@ import '../models/mod_metadata.dart';
 import '../core/constants.dart';
 import '../utils/path_helper.dart';
 import '../utils/state_providers.dart';
+import '../utils/zzz_characters.dart';
 import 'config_service.dart';
 import 'mod_metadata_service.dart';
 import 'platform_service.dart';
@@ -511,160 +512,16 @@ class ModManagerService {
       print('ModManager: Помилка пошуку в файлах моду "$modName": $e');
     }
     
-    // Мапа персонажів з альтернативними іменами для кращого розпізнавання
-    final characterAliases = <String, List<String>>{
-      'alice': ['alice'],
-      'anby': ['anby'],
-      'anton': ['anton'],
-      'astra': ['astra', 'astrayao', 'astra yao'],
-      'belle': ['belle'],
-      'ben': ['ben', 'bigger', 'ben bigger'],
-      'billy': ['billy', 'billyherinkton', 'billy kid'],
-      'burnice': ['burnice', 'burnice white'],
-      'caesar': ['caesar', 'caesar king'],
-      'corin': ['corin', 'corin wickes'],
-      'ellen': ['ellen', 'ellen joe'],
-      'evelyn': ['evelyn'],
-      'grace': ['grace', 'grace howard'],
-      'harumasa': ['harumasa', 'asaba harumasa'],
-      'hugo': ['hugo'],
-      'jane': ['jane', 'janedoe', 'jane doe'],
-      'jufufu': ['jufufu', 'ju fufu'],
-      'koleda': ['koleda', 'koleda belobog'],
-      'lighter': ['lighter', 'lighter lorenz'],
-      'lucy': ['lucy', 'lucy kushinada'],
-      'lycaon': ['lycaon', 'von lycaon', 'vonlycaon'],
-      'miyabi': ['miyabi', 'hoshimi miyabi'],
-      'nekomata': ['nekomata', 'nekomiya mana'],
-      'nicole': ['nicole', 'nicole demara'],
-      'orphie': ['orphie', 'orphiemagus', 'orphie magus'],
-      'panyinhu': ['panyinhu', 'pan yinhu'],
-      'piper': ['piper', 'piper wheel'],
-      'pulchra': ['pulchra'],
-      'quinqiy': ['quinqiy', 'qingyi'],
-      'rina': ['rina', 'alexandrina'],
-      'seed': ['seed'],
-      'seth': ['seth', 'seth lowell'],
-      'solder0anby': ['solder0anby', 'soldier 0', 'soldier0'],
-      'solder11': ['solder11', 'soldier 11', 'soldier11'],
-      'soukaku': ['soukaku'],
-      'trigger': ['trigger'],
-      'vivian': ['vivian'],
-      'wise': ['wise'],
-      'yanagi': ['yanagi', 'tsukishiro yanagi'],
-      'yixuan': ['yixuan'],
-      'yuzuha': ['yuzuha'],
-      'zhuyuan': ['zhuyuan', 'zhu yuan'],
-    };
-
-    // Спочатку шукаємо повні збіги для точності
-    for (final entry in characterAliases.entries) {
-      final charId = entry.key;
-      final aliases = entry.value;
-      
-      for (final alias in aliases) {
-        // Шукаємо як окреме слово з границями
-        final pattern = RegExp(r'\b' + RegExp.escape(alias) + r'\b', caseSensitive: false);
-        if (pattern.hasMatch(nameLower)) {
-          print('ModManager: Виявлено персонажа "$charId" (збіг: "$alias") в "$modName"');
-          return charId;
-        }
-      }
+    // Розпізнаємо персонажа за іменем папки (бренд/реальне ім'я + аліаси)
+    final detected = detectCharacterId(nameLower);
+    if (detected == null) {
+      print('ModManager: Не вдалося визначити персонажа для "$modName"');
     }
-    
-    // Якщо не знайшли повну збіг, шукаємо часткові збіги (як раніше)
-    for (final entry in characterAliases.entries) {
-      final charId = entry.key;
-      final aliases = entry.value;
-      
-      for (final alias in aliases) {
-        if (nameLower.contains(alias)) {
-          print('ModManager: Виявлено персонажа "$charId" (частковий збіг: "$alias") в "$modName"');
-          return charId;
-        }
-      }
-    }
-
-    print('ModManager: Не вдалося визначити персонажа для "$modName"');
-    return null;
+    return detected;
   }
   
   /// Допоміжний метод для пошуку персонажа в тексті
-  String? _findCharacterInText(String text) {
-    final textLower = text.toLowerCase();
-    
-    final characterAliases = <String, List<String>>{
-      'alice': ['alice'],
-      'anby': ['anby'],
-      'anton': ['anton'],
-      'astra': ['astra', 'astrayao', 'astra yao'],
-      'belle': ['belle'],
-      'ben': ['ben', 'bigger', 'ben bigger'],
-      'billy': ['billy', 'billyherinkton', 'billy kid'],
-      'burnice': ['burnice', 'burnice white'],
-      'caesar': ['caesar', 'caesar king'],
-      'corin': ['corin', 'corin wickes'],
-      'ellen': ['ellen', 'ellen joe'],
-      'evelyn': ['evelyn'],
-      'grace': ['grace', 'grace howard'],
-      'harumasa': ['harumasa', 'asaba harumasa'],
-      'hugo': ['hugo'],
-      'jane': ['jane', 'janedoe', 'jane doe'],
-      'jufufu': ['jufufu', 'ju fufu'],
-      'koleda': ['koleda', 'koleda belobog'],
-      'lighter': ['lighter', 'lighter lorenz'],
-      'lucy': ['lucy', 'lucy kushinada'],
-      'lycaon': ['lycaon', 'von lycaon', 'vonlycaon'],
-      'miyabi': ['miyabi', 'hoshimi miyabi'],
-      'nekomata': ['nekomata', 'nekomiya mana'],
-      'nicole': ['nicole', 'nicole demara'],
-      'orphie': ['orphie', 'orphiemagus', 'orphie magus'],
-      'panyinhu': ['panyinhu', 'pan yinhu'],
-      'piper': ['piper', 'piper wheel'],
-      'pulchra': ['pulchra'],
-      'quinqiy': ['quinqiy', 'qingyi'],
-      'rina': ['rina', 'alexandrina'],
-      'seed': ['seed'],
-      'seth': ['seth', 'seth lowell'],
-      'solder0anby': ['solder0anby', 'soldier 0', 'soldier0'],
-      'solder11': ['solder11', 'soldier 11', 'soldier11'],
-      'soukaku': ['soukaku'],
-      'trigger': ['trigger'],
-      'vivian': ['vivian'],
-      'wise': ['wise'],
-      'yanagi': ['yanagi', 'tsukishiro yanagi'],
-      'yixuan': ['yixuan'],
-      'yuzuha': ['yuzuha'],
-      'zhuyuan': ['zhuyuan', 'zhu yuan'],
-    };
-    
-    // Спочатку шукаємо повні збіги
-    for (final entry in characterAliases.entries) {
-      final charId = entry.key;
-      final aliases = entry.value;
-      
-      for (final alias in aliases) {
-        final pattern = RegExp(r'\b' + RegExp.escape(alias) + r'\b', caseSensitive: false);
-        if (pattern.hasMatch(textLower)) {
-          return charId;
-        }
-      }
-    }
-    
-    // Часткові збіги
-    for (final entry in characterAliases.entries) {
-      final charId = entry.key;
-      final aliases = entry.value;
-      
-      for (final alias in aliases) {
-        if (textLower.contains(alias)) {
-          return charId;
-        }
-      }
-    }
-    
-    return null;
-  }
+  String? _findCharacterInText(String text) => detectCharacterId(text);
 
   /// Автоматично визначає та встановлює теги для всіх модів
   /// Повертає кількість модів з визначеними тегами
