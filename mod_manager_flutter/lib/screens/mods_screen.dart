@@ -239,21 +239,21 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       }
 
       // Built-in non-character categories (UI/Texture/Audio/Misc) come before
-      // the characters. A mod assigned to one already lands in characterMods by
-      // its category id, so these just need their own sidebar entries.
-      characters.addAll(
-        builtInCategories
-            .map((cat) {
-              return CharacterInfo(
-                id: cat.id,
-                name: categoryDisplayName(cat.id, loc),
-                icon: cat.icon,
-                skins: characterMods[cat.id] ?? [],
-              );
-            })
-            .where((cat) => cat.skins.isNotEmpty)
-            .toList(),
-      );
+      // the characters and are always shown once any mod exists — even with no
+      // mods assigned yet — so users can see where non-character mods belong.
+      // (Characters, by contrast, only appear once they have a mod.)
+      if (allMods.isNotEmpty) {
+        characters.addAll(
+          builtInCategories.map((cat) {
+            return CharacterInfo(
+              id: cat.id,
+              name: categoryDisplayName(cat.id, loc),
+              icon: cat.icon,
+              skins: characterMods[cat.id] ?? [],
+            );
+          }).toList(),
+        );
+      }
 
       // Додаємо інших персонажів
       characters.addAll(
