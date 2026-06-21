@@ -595,18 +595,24 @@ class _MainScreenState extends ConsumerState<MainScreen>
               child: const Icon(Icons.style, color: Colors.white, size: 14),
             ),
             const SizedBox(width: 12),
-            // App title with gradient text
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
-              ).createShader(bounds),
-              child: Text(
-                context.loc.t('app.title'),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                  letterSpacing: 0.3,
+            // App title with gradient text. Flexible + ellipsis so a very
+            // narrow title bar (e.g. the brief first frame before the window is
+            // sized) shrinks the title instead of overflowing the Row.
+            Flexible(
+              child: ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
+                ).createShader(bounds),
+                child: Text(
+                  context.loc.t('app.title'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
             ),
