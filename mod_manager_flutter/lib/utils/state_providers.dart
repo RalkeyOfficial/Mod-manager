@@ -99,6 +99,13 @@ final modFiltersActiveProvider = Provider<bool>((ref) {
       ref.watch(modFavoritesOnlyProvider);
 });
 
+/// Resets the mods search / tag / favorites filters (leaves the sort mode).
+void clearModFilters(WidgetRef ref) {
+  ref.read(modSearchQueryProvider.notifier).state = '';
+  ref.read(modTagFiltersProvider.notifier).state = <String>{};
+  ref.read(modFavoritesOnlyProvider.notifier).state = false;
+}
+
 /// Distinct tags present in the current view's mods (sorted), for the
 /// tag-filter dropdown.
 final availableModTagsProvider = Provider<List<String>>((ref) {
