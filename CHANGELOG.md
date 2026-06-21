@@ -38,6 +38,7 @@ type (Added / Changed / Fixed / Removed).
 
 ## Changed
 
+- App version bumped to **2.0.0** (was 1.0.0).
 - Character roster updated to the current game version: corrected display names
   (e.g. "Von Lycaon" → **Lycaon**, "Soldier 0 Anby" → **Soldier 0 - Anby**,
   "Jufufu" → **Ju Fufu**, Qingyi, Pan Yinhu) and **18 new characters added**

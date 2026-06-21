@@ -2,7 +2,7 @@
 # Створює ZIP архів з усіма необхідними файлами
 
 param(
-    [string]$Version = "1.0.0"
+    [string]$Version = "2.0.0"
 )
 
 Write-Host "========================================" -ForegroundColor Cyan
