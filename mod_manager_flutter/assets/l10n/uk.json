@@ -107,7 +107,8 @@
     },
     "dialog": {
       "edit_title": "Редагувати мод",
-      "character_tag": "Тег персонажа:",
+      "character_tag": "Категорія:",
+      "no_category": "Без категорії",
       "source_url": "Посилання на джерело:",
       "source_url_hint": "https://gamebanana.com/mods/...",
       "description": "Опис:",
@@ -304,6 +305,14 @@
   "language_names": {
     "en": "English",
     "uk": "Українська"
+  },
+  "categories": {
+    "ui": "Інтерфейс",
+    "texture": "Текстури",
+    "audio": "Аудіо",
+    "misc": "Різне",
+    "section_characters": "Персонажі",
+    "section_categories": "Категорії"
   },
   "common": {
     "unknown": "Невідомо"

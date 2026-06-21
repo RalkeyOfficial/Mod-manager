@@ -8,6 +8,10 @@ type (Added / Changed / Fixed / Removed).
 
 ## Fixed
 
+- Character portraits now resolve by their asset filename, so characters whose
+  image differs from their id (e.g. Billy → `billy_herinkton.png`) show the real
+  portrait instead of a person placeholder — in the sidebar, the edit-dialog
+  picker, and the details view.
 - Scrollbar crash when scrolling around a mods-tab switch ("ScrollController
   attached to more than one ScrollPosition"). The mods list shared a single
   scroll controller across the tab-change animation, so the outgoing and
@@ -55,6 +59,14 @@ type (Added / Changed / Fixed / Removed).
 
 ## Added
 
+- Mods can now be assigned to **non-character categories** — UI, Texture, Audio
+  and Misc — alongside the character roster. Assign one in the edit dialog (the
+  picker now groups **Characters** and **Categories**); a category with mods gets
+  its own sidebar entry, its own section in the grouped ALL view, and an icon in
+  the details dialog. The picker no longer defaults an unassigned mod to the
+  first character — it shows "No category" instead. Categories are stored in the
+  same place as character assignments, so nothing migrates; an older build that
+  doesn't know a category id just shows it by its raw id until upgraded.
 - The **ALL** tab now groups its mods into per-character sections, each under a
   `▾ ── Character (count) ───` separator header that doubles as the section
   label. Groups follow the roster order, mods with no recognised character fall

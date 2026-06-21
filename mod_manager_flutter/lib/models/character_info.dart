@@ -1,10 +1,14 @@
+import 'package:flutter/widgets.dart';
+
 import 'keybind_info.dart';
 
-/// Модель даних для персонажа
+/// Модель даних для персонажа (also used for non-character categories, which
+/// carry an [icon] instead of an [iconPath] portrait asset).
 class CharacterInfo {
   final String id;
   final String name;
   final String? iconPath;
+  final IconData? icon; // Material icon for built-in (non-character) categories.
   final List<ModInfo> skins;
   final CharacterKeybinds? keybinds;
 
@@ -12,6 +16,7 @@ class CharacterInfo {
     required this.id,
     required this.name,
     this.iconPath,
+    this.icon,
     this.skins = const [],
     this.keybinds,
   });
@@ -20,6 +25,7 @@ class CharacterInfo {
     String? id,
     String? name,
     String? iconPath,
+    IconData? icon,
     List<ModInfo>? skins,
     CharacterKeybinds? keybinds,
   }) {
@@ -27,6 +33,7 @@ class CharacterInfo {
       id: id ?? this.id,
       name: name ?? this.name,
       iconPath: iconPath ?? this.iconPath,
+      icon: icon ?? this.icon,
       skins: skins ?? this.skins,
       keybinds: keybinds ?? this.keybinds,
     );

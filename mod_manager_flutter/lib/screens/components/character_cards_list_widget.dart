@@ -302,6 +302,15 @@ class _CharacterCardsListWidgetState
                               ),
                             ),
                           )
+                        : character.icon != null
+                        ? Container(
+                            color: Colors.grey.withOpacity(0.15),
+                            child: Icon(
+                              character.icon,
+                              size: AppConstants.characterCardWidth * 0.5,
+                              color: Colors.grey[700],
+                            ),
+                          )
                         : Container(
                             color: Colors.grey.withOpacity(0.2),
                             child: Icon(

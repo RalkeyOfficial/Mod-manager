@@ -107,7 +107,8 @@
     },
     "dialog": {
       "edit_title": "Edit Mod",
-      "character_tag": "Character Tag:",
+      "character_tag": "Category:",
+      "no_category": "No category",
       "source_url": "Source link:",
       "source_url_hint": "https://gamebanana.com/mods/...",
       "description": "Description:",
@@ -304,6 +305,14 @@
   "language_names": {
     "en": "English",
     "uk": "Українська"
+  },
+  "categories": {
+    "ui": "UI",
+    "texture": "Texture",
+    "audio": "Audio",
+    "misc": "Misc",
+    "section_characters": "Characters",
+    "section_categories": "Categories"
   },
   "common": {
     "unknown": "Unknown"

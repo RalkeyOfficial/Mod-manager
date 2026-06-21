@@ -20,6 +20,7 @@ import '../models/keybind_info.dart';
 import '../services/api_service.dart';
 import '../services/archive_service.dart';
 import '../utils/state_providers.dart';
+import '../utils/categories.dart';
 import '../utils/zzz_characters.dart';
 import '../l10n/app_localizations.dart';
 import 'components/mode_toggle_widget.dart';
@@ -237,6 +238,23 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         );
       }
 
+      // Built-in non-character categories (UI/Texture/Audio/Misc) come before
+      // the characters. A mod assigned to one already lands in characterMods by
+      // its category id, so these just need their own sidebar entries.
+      characters.addAll(
+        builtInCategories
+            .map((cat) {
+              return CharacterInfo(
+                id: cat.id,
+                name: categoryDisplayName(cat.id, loc),
+                icon: cat.icon,
+                skins: characterMods[cat.id] ?? [],
+              );
+            })
+            .where((cat) => cat.skins.isNotEmpty)
+            .toList(),
+      );
+
       // Додаємо інших персонажів
       characters.addAll(
         zzzCharacters
@@ -244,7 +262,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
               return CharacterInfo(
                 id: charId,
                 name: getCharacterDisplayName(charId),
-                iconPath: 'assets/characters/$charId.png',
+                iconPath:
+                    'assets/characters/${getCharacterAssetName(charId)}.png',
                 skins: characterMods[charId] ?? [],
               );
             })
@@ -783,6 +802,23 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     }
   }
 
+  /// A non-selectable section header for the edit-dialog category dropdown.
+  /// [value] is a sentinel id ignored by the dropdown's onChanged.
+  DropdownMenuItem<String> _categoryDropdownHeader(String value, String label) {
+    return DropdownMenuItem<String>(
+      value: value,
+      enabled: false,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey[600],
+        ),
+      ),
+    );
+  }
+
   void _showEditDialog(ModInfo mod) {
     final selectedChar = ValueNotifier<String>(mod.characterId);
     final urlController = TextEditingController(text: mod.sourceUrl ?? '');
@@ -872,10 +908,13 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                 ValueListenableBuilder<String>(
                   valueListenable: selectedChar,
                   builder: (context, value, _) {
+                    final isKnown =
+                        zzzCharacters.contains(value) ||
+                        isBuiltInCategory(value);
                     return DropdownButtonFormField<String>(
-                      value: zzzCharacters.contains(value)
-                          ? value
-                          : zzzCharacters.first,
+                      value: isKnown ? value : null,
+                      isExpanded: true,
+                      hint: Text(loc.t('mods.dialog.no_category')),
                       decoration: InputDecoration(
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -886,35 +925,62 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                         ),
                         isDense: true,
                       ),
-                      items: zzzCharacters.map((charId) {
-                        return DropdownMenuItem(
-                          value: charId,
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: Image.asset(
-                                  'assets/characters/$charId.png',
-                                  width: 24,
-                                  height: 24,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Icon(
-                                    Icons.person,
-                                    size: 24,
-                                    color: Colors.grey[600],
+                      items: [
+                        _categoryDropdownHeader(
+                          '__hdr_cats',
+                          loc.t('categories.section_categories'),
+                        ),
+                        for (final cat in builtInCategories)
+                          DropdownMenuItem(
+                            value: cat.id,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  cat.icon,
+                                  size: 24,
+                                  color: Colors.grey[700],
+                                ),
+                                const SizedBox(width: 8),
+                                Text(loc.t(cat.labelKey)),
+                              ],
+                            ),
+                          ),
+                        _categoryDropdownHeader(
+                          '__hdr_chars',
+                          loc.t('categories.section_characters'),
+                        ),
+                        for (final charId in zzzCharacters)
+                          DropdownMenuItem(
+                            value: charId,
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.asset(
+                                    'assets/characters/${getCharacterAssetName(charId)}.png',
+                                    width: 24,
+                                    height: 24,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Icon(
+                                      Icons.person,
+                                      size: 24,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(getCharacterDisplayName(charId)),
-                            ],
+                                const SizedBox(width: 8),
+                                Text(getCharacterDisplayName(charId)),
+                              ],
+                            ),
                           ),
-                        );
-                      }).toList(),
+                      ],
                       onChanged: (newValue) {
-                        if (newValue != null) {
-                          selectedChar.value = newValue;
+                        if (newValue == null ||
+                            newValue == '__hdr_chars' ||
+                            newValue == '__hdr_cats') {
+                          return;
                         }
+                        selectedChar.value = newValue;
                       },
                     );
                   },
@@ -1172,23 +1238,30 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
                         if (hasCharacter) ...[
                           Row(
                             children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: Image.asset(
-                                  'assets/characters/${mod.characterId}.png',
-                                  width: 28,
-                                  height: 28,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Icon(
-                                    Icons.person,
-                                    size: 28,
-                                    color: Colors.grey[600],
+                              if (isBuiltInCategory(mod.characterId))
+                                Icon(
+                                  categoryIcon(mod.characterId),
+                                  size: 28,
+                                  color: Colors.grey[700],
+                                )
+                              else
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.asset(
+                                    'assets/characters/${getCharacterAssetName(mod.characterId)}.png',
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Icon(
+                                      Icons.person,
+                                      size: 28,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
                                 ),
-                              ),
                               const SizedBox(width: 8),
                               Text(
-                                getCharacterDisplayName(mod.characterId),
+                                categoryDisplayName(mod.characterId, loc),
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -2708,14 +2781,22 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       groups.putIfAbsent(id, () => []).add(mod);
     }
 
-    // Roster order first, then any unknown character ids (alpha), then "Other".
+    // Built-in categories first, then the character roster, then any unknown
+    // ids (alpha), then "Other".
     final orderedIds = <String>[
+      for (final cat in builtInCategories)
+        if (groups.containsKey(cat.id)) cat.id,
       for (final id in zzzCharacters)
         if (groups.containsKey(id)) id,
     ];
     final leftover =
         groups.keys
-            .where((id) => id != '__other__' && !zzzCharacters.contains(id))
+            .where(
+              (id) =>
+                  id != '__other__' &&
+                  !zzzCharacters.contains(id) &&
+                  !isBuiltInCategory(id),
+            )
             .toList()
           ..sort();
     orderedIds.addAll(leftover);
@@ -2735,7 +2816,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       final mods = groups[id]!;
       final label = id == '__other__'
           ? loc.t('mods.uncategorized')
-          : getCharacterDisplayName(id);
+          : categoryDisplayName(id, loc);
       final collapsed = _collapsedGroups.contains(id);
       slivers.add(
         SliverToBoxAdapter(

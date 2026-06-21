@@ -101,12 +101,23 @@ Suggested order: **3 → 1 → 2** (quick bug fixes), then **4** (foundation), t
   hidden under filters. Section headers are clickable to collapse/expand (in-memory state,
   `_collapsedGroups`). Other tabs stay a flat grid.
 
-- [ ] **14. Support non-character categories (rename characters → categories)**
-  *Larger / plan first.* Everything is keyed to ZZZ characters today (`CharacterInfo`, the
-  roster in `utils/zzz_characters.dart`, the `characterAliases` auto-tag maps duplicated in
-  `mod_manager_service.dart`, the edit-dialog dropdown, `assets/characters/*.png`, metadata
-  `characterId` / config `mod_character_tags`). Generalize to **categories**: characters stay as
-  categories, plus non-character ones (UI, Texture, Audio, Misc, …) and possibly user-defined.
-  Introduce a Category abstraction (id, name, icon, isCharacter), allow assigning mods to any
-  category, migrate existing `characterId` values, and update grouping/sidebar/edit UI naming.
-  Foundational for #13.
+- [x] **14. Support non-character categories** ✅ *(built-in set; characters NOT renamed)*
+  Generalize beyond ZZZ characters so non-character mods have a home.
+  *Done:* added a `CategoryData` registry (`lib/utils/categories.dart`) with built-in
+  categories **UI / Texture / Audio / Misc**; mods assign to them via the edit-dialog picker
+  (now grouped Characters / Categories), and they get a sidebar entry + grouped-view section +
+  details icon. Stored in the existing `characterId` / `mod_character_tags` namespace (no
+  rename, no migration). Also fixed the character-portrait asset-name bug (Billy).
+  *Deferred:* **user-defined** categories (create/rename/delete + custom icons) — would need a
+  persisted category store and management UI. Auto-detection still only covers characters.
+
+- [ ] **15. Remove the redundant "Favorites" category/tab**
+  `loadMods()` (`mod_manager_flutter/lib/screens/mods_screen.dart:216-226`) injects a synthetic
+  `CharacterInfo(id: 'favorites')` at the top of the sidebar whenever any mod is favorited. This
+  is now redundant: the toolbar's **favorites-only** filter (the star toggle →
+  `modFavoritesOnlyProvider`, added with #12) does the same job in any view — the equivalent of
+  the old tab is **ALL + favorites filter on**.
+  *Fix:* drop the `'favorites'` `CharacterInfo` block so it never appears in the sidebar. Then
+  audit fallout: the `mods.favorites` l10n key (`assets/l10n/en.json` + `uk.json`) becomes unused
+  (remove it), and check the selected-index restore logic in `loadMods` and any `id == 'favorites'`
+  special-casing. The per-mod favorite **star** on cards stays — only the standalone tab goes.
