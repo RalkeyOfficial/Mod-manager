@@ -138,10 +138,9 @@ const List<CharacterData> zzzCharactersData = [
   ),
   CharacterData(id: 'pyrois', briefName: 'Pyrois'),
   CharacterData(
-    id: 'quinqiy',
+    id: 'qingyi',
     realName: '01 Neo-Genesis VI',
     briefName: 'Qingyi',
-    aliases: ['quinqiy'],
   ),
   CharacterData(
     id: 'remielle',
@@ -214,8 +213,19 @@ final Map<String, CharacterData> _charactersById = {
   for (final c in zzzCharactersData) c.id: c,
 };
 
+/// Superseded character ids (typo corrections, renames) mapped to their current
+/// id, so mods already tagged under the old id keep resolving to the character.
+const Map<String, String> _legacyCharacterIds = {
+  'quinqiy': 'qingyi', // corrected misspelling of Qingyi's id
+};
+
+/// Normalises a possibly-legacy stored character id to the current roster id.
+String canonicalCharacterId(String id) =>
+    _legacyCharacterIds[id.toLowerCase()] ?? id;
+
 /// The character with this id, or null if unknown.
-CharacterData? characterById(String id) => _charactersById[id.toLowerCase()];
+CharacterData? characterById(String id) =>
+    _charactersById[canonicalCharacterId(id).toLowerCase()];
 
 /// Display name for a character id (falls back to the id itself).
 String getCharacterDisplayName(String id) =>

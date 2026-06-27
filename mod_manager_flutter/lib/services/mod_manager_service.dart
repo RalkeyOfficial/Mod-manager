@@ -114,9 +114,11 @@ class ModManagerService {
           if (preview != null) images.add(preview);
         }
 
-        final characterId = (metadata.characterId != null && metadata.characterId!.isNotEmpty)
-            ? metadata.characterId!
-            : (_configService.modCharacterTags[modName] ?? 'unknown');
+        final characterId = canonicalCharacterId(
+          (metadata.characterId != null && metadata.characterId!.isNotEmpty)
+              ? metadata.characterId!
+              : (_configService.modCharacterTags[modName] ?? 'unknown'),
+        );
 
         modsInfo.add(
           ModInfo(
