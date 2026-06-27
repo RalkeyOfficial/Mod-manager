@@ -175,16 +175,13 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         validModIds.add(oldMod.id);
 
         // characterId is resolved by the service (in-folder metadata, then the
-        // legacy config tag). Fall back to name-based auto-detection.
+        // legacy config tag). Fall back to name-based auto-detection — using the
+        // shared detector (brief/real names + aliases, word-boundary aware) so
+        // names whose id differs from the spoken form (e.g. "Zhu Yuan" vs the
+        // id "zhuyuan") still resolve instead of dropping into Unknown.
         String charId = oldMod.characterId;
         if (charId.isEmpty || charId == 'unknown') {
-          for (var char in zzzCharacterIds) {
-            if (oldMod.id.toLowerCase().contains(char.toLowerCase()) ||
-                oldMod.name.toLowerCase().contains(char.toLowerCase())) {
-              charId = char;
-              break;
-            }
-          }
+          charId = detectCharacterId(oldMod.name) ?? charId;
         }
 
         // Preserve all service-resolved metadata (image, description, url,
@@ -3319,6 +3316,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       final archivesToExtract = <XFile>[];
       final successfullyExtractedArchives = <String>[];
       final tempFoldersToCleanup = <String>[];
+      // Extracted-folder path -> originating archive base name, used as an extra
+      // character-detection hint (the character is often in the archive name).
+      final detectionHints = <String, String>{};
 
       for (final file in files) {
         // Перевіряємо чи це архів
@@ -3354,6 +3354,12 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
             folderPaths.addAll(result.extractedFolders!);
             tempFoldersToCleanup.addAll(result.extractedFolders!);
             successfullyExtractedArchives.add(archiveFile.path);
+            final archiveBaseName = path.basenameWithoutExtension(
+              archiveFile.path,
+            );
+            for (final folder in result.extractedFolders!) {
+              detectionHints[folder] = archiveBaseName;
+            }
             print(
               'ModsScreen: Розархівовано ${result.extractedFolders!.length} папок з ${archiveFile.name}',
             );
@@ -3443,6 +3449,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       );
       final (importedMods, autoTags) = await modManagerService.importMods(
         folderPaths,
+        detectionHints: detectionHints,
       );
 
       // Закриваємо діалог прогресу
@@ -3497,12 +3504,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         return;
       }
 
-      // Зберігаємо автоматично визначені теги (in-folder sidecar + config mirror)
-      for (final entry in autoTags.entries) {
-        await ApiService.setModCharacter(entry.key, entry.value);
-      }
-
-      // Оновлюємо теги в поточному стані
+      // importMods already persisted the detected tags (sidecar + config); just
+      // mirror them into the current UI state.
       setState(() {
         modCharacterTags.addAll(autoTags);
       });

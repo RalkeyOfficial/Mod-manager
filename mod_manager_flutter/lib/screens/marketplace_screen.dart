@@ -1011,8 +1011,14 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
 
       final ModManagerService modManager =
           await ApiService.getModManagerService();
+      // The character is often in the archive name rather than the inner folder
+      // (or vice versa), so pass the archive base name as an extra detection hint.
+      final archiveBaseName = path.basenameWithoutExtension(archiveFile.path);
       final (importedMods, autoTags) = await modManager.importMods(
         directoriesToImport,
+        detectionHints: {
+          for (final dir in directoriesToImport) dir: archiveBaseName,
+        },
       );
 
       if (importedMods.isEmpty) {
