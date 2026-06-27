@@ -161,3 +161,8 @@ type (Added / Changed / Fixed / Removed).
   name-based fallback did a raw substring match against the id, so those mods
   dropped into Unknown; it now uses the shared name/alias detector (brief and
   real names plus aliases, word-boundary aware).
+- Mods downloaded from the in-app marketplace now persist their auto-detected
+  character to disk (in-folder sidecar + config), the same as folder and
+  drag-drop imports. The download path previously used the detection only for a
+  notification and never saved it, so the category was cosmetic and vanished the
+  moment the mod was renamed.

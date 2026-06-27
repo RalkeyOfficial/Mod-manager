@@ -3494,12 +3494,8 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         return;
       }
 
-      // Зберігаємо автоматично визначені теги (in-folder sidecar + config mirror)
-      for (final entry in autoTags.entries) {
-        await ApiService.setModCharacter(entry.key, entry.value);
-      }
-
-      // Оновлюємо теги в поточному стані
+      // importMods already persisted the detected tags (sidecar + config); just
+      // mirror them into the current UI state.
       setState(() {
         modCharacterTags.addAll(autoTags);
       });

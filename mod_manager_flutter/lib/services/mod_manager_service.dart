@@ -486,9 +486,13 @@ class ModManagerService {
         await _copyDirectory(sourceDir, targetDir);
         importedMods.add(modName);
 
-        // Автоматично визначаємо тег персонажа з назви папки
+        // Автоматично визначаємо тег персонажа і одразу зберігаємо його в
+        // sidecar (+ config mirror), щоб завантажені моди отримали постійну
+        // категорію, яка переживає перейменування — а не лише косметичне
+        // визначення під час відображення.
         final detectedChar = await _detectCharacterFromName(modName);
         if (detectedChar != null) {
+          await setModCharacter(modName, detectedChar);
           autoTags[modName] = detectedChar;
         }
       }
