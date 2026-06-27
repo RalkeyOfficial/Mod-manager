@@ -62,11 +62,21 @@ System dependencies (Linux dev): the C++ toolchain (`clang`, `cmake`, `ninja`,
 
 ## Changelog (keep up to date)
 
-`CHANGELOG.md` (repo root) is a traditional, chronological changelog. Update it
-as part of every change: add the entry under the current version's section
-(grouped Added / Changed / Fixed / Removed), creating a new version section at
-the bottom of the file when starting a new version. Keep entries concise and
-describe behaviour/intent, not implementation detail.
+`CHANGELOG.md` (repo root) follows [Keep a Changelog](https://keepachangelog.com)
+and [Semantic Versioning](https://semver.org). Update it as part of every change:
+
+- New entries go under the top `## [Unreleased]` section, grouped under
+  `### Added` / `### Changed` / `### Fixed` / `### Removed`.
+- Versions are newest-first (top → down). Headers carry no `v` prefix:
+  `## [Unreleased]`, `## [2.0.1] - YYYY-MM-DD`, `## [1.0.0] - 2025-10-01`.
+- Keep each entry to **one line where possible, two at most** (the optional
+  second line being e.g. the bug it fixed). Describe behaviour/intent, not
+  implementation detail.
+- The version number only goes up **after** the latest version is released on
+  GitHub. On release: rename `## [Unreleased]` to `## [x.y.z] - <date>`, bump
+  `pubspec.yaml` `version:` to match, tag the commit, then add a fresh empty
+  `## [Unreleased]` at the top. Patch = fixes, minor = features, major =
+  breaking.
 
 ## Architecture
 
