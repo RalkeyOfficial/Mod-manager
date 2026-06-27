@@ -175,16 +175,13 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         validModIds.add(oldMod.id);
 
         // characterId is resolved by the service (in-folder metadata, then the
-        // legacy config tag). Fall back to name-based auto-detection.
+        // legacy config tag). Fall back to name-based auto-detection — using the
+        // shared detector (brief/real names + aliases, word-boundary aware) so
+        // names whose id differs from the spoken form (e.g. "Zhu Yuan" vs the
+        // id "zhuyuan") still resolve instead of dropping into Unknown.
         String charId = oldMod.characterId;
         if (charId.isEmpty || charId == 'unknown') {
-          for (var char in zzzCharacterIds) {
-            if (oldMod.id.toLowerCase().contains(char.toLowerCase()) ||
-                oldMod.name.toLowerCase().contains(char.toLowerCase())) {
-              charId = char;
-              break;
-            }
-          }
+          charId = detectCharacterId(oldMod.name) ?? charId;
         }
 
         // Preserve all service-resolved metadata (image, description, url,

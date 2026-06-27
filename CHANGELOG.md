@@ -156,3 +156,8 @@ type (Added / Changed / Fixed / Removed).
 - Corrected Qingyi's misspelled character id (`quinqiy` → `qingyi`), so
   downloaded or renamed Qingyi mods auto-categorise correctly instead of landing
   in Unknown. Mods already tagged under the old id are remapped automatically.
+- Auto-categorisation now recognises characters whose folder name differs from
+  their internal id — e.g. "Zhu Yuan" (with a space) vs the id `zhuyuan`. The
+  name-based fallback did a raw substring match against the id, so those mods
+  dropped into Unknown; it now uses the shared name/alias detector (brief and
+  real names plus aliases, word-boundary aware).
