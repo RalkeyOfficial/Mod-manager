@@ -6,6 +6,11 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# Required so GITHUB_TOKEN can create/update the GitHub Release; without this
+# the release step fails with "Resource not accessible by integration".
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     # Pinned to 2022: windows-latest moved to a newer MSVC that turns the
@@ -60,7 +65,7 @@ jobs:
       # Опціонально: створити GitHub Release
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: windows_installer/output/*.zip
         env:
