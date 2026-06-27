@@ -27,6 +27,12 @@ dependencies:
   url_launcher: ^6.2.5
   archive: ^3.5.1
 
+  # Markdown rendering for mod descriptions (maintained successor to the
+  # discontinued flutter_markdown). `markdown` is the underlying parser, pinned
+  # directly so we can supply a custom blockquote syntax.
+  flutter_markdown_plus: ^1.0.0
+  markdown: ^7.3.1
+
   # State Management
   flutter_riverpod: ^2.6.1
 

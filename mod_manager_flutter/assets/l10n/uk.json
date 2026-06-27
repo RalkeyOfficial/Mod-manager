@@ -119,7 +119,7 @@
       "source_url": "Посилання на джерело:",
       "source_url_hint": "https://gamebanana.com/mods/...",
       "description": "Опис:",
-      "description_hint": "Нотатки про цей мод...",
+      "description_hint": "Нотатки про цей мод... (підтримується markdown)",
       "tags": "Теги:",
       "tag_add_hint": "Додайте тег і натисніть Enter",
       "tag_add": "Додати тег",
