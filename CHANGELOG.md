@@ -166,3 +166,9 @@ type (Added / Changed / Fixed / Removed).
   drag-drop imports. The download path previously used the detection only for a
   notification and never saved it, so the category was cosmetic and vanished the
   moment the mod was renamed.
+- Character auto-detection no longer scans `.ini` file contents. Those have no
+  consistent character naming (stray comments, keybind labels, texture names),
+  which produced false matches — most visibly the substring "norma" inside
+  "NormalMap" tagging mods as Norma. Detection now uses only the mod folder name
+  and the source archive's file name (the character name is often in one but not
+  the other), which is far more reliable.

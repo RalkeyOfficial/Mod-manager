@@ -455,8 +455,16 @@ class ModManagerService {
   }
 
   /// Імпортує нові моди з вказаних папок
-  /// Повертає список імпортованих модів та їх автоматично визначених тегів персонажів
-  Future<(List<String>, Map<String, String>)> importMods(List<String> folderPaths) async {
+  /// Повертає список імпортованих модів та їх автоматично визначених тегів персонажів.
+  ///
+  /// [detectionHints] зіставляє шлях вихідної папки з додатковою назвою для
+  /// визначення персонажа (зазвичай — ім'я архіву, з якого розпаковано папку).
+  /// Часто персонаж є в імені .zip/.rar, а не у внутрішній папці (або навпаки),
+  /// тож скануємо обидві назви.
+  Future<(List<String>, Map<String, String>)> importMods(
+    List<String> folderPaths, {
+    Map<String, String>? detectionHints,
+  }) async {
     try {
       final (valid, _) = await validatePaths();
       if (!valid) return (<String>[], <String, String>{});
@@ -490,7 +498,11 @@ class ModManagerService {
         // sidecar (+ config mirror), щоб завантажені моди отримали постійну
         // категорію, яка переживає перейменування — а не лише косметичне
         // визначення під час відображення.
-        final detectedChar = await _detectCharacterFromName(modName);
+        final hint = detectionHints?[folderPath];
+        final detectedChar = _detectCharacterFromName(
+          modName,
+          extraNames: [if (hint != null && hint.isNotEmpty) hint],
+        );
         if (detectedChar != null) {
           await setModCharacter(modName, detectedChar);
           autoTags[modName] = detectedChar;
@@ -503,76 +515,20 @@ class ModManagerService {
     }
   }
 
-  /// Визначає персонажа з назви моду
-  Future<String?> _detectCharacterFromName(String modName) async {
-    final nameLower = modName.toLowerCase();
-    
-    // Спробуємо знайти персонажа в INI файлах моду
-    try {
-      final modsPath = _configService.modsPath;
-      if (modsPath == null || modsPath.isEmpty) {
-        // Якщо шлях не налаштовано, просто шукаємо в назві
-      } else {
-        final modPath = path.join(modsPath, modName);
-        final modDir = Directory(modPath);
-      
-      if (await modDir.exists()) {
-        // Шукаємо INI файли
-        final iniFiles = await modDir
-            .list(recursive: true)
-            .where((entity) => 
-                entity is File && 
-                path.extension(entity.path).toLowerCase() == '.ini')
-            .cast<File>()
-            .toList();
-        
-        for (final iniFile in iniFiles) {
-          try {
-            final content = await iniFile.readAsString();
-            final contentLower = content.toLowerCase();
-            
-            // Шукаємо в Header або секціях INI
-            final charFromIni = _findCharacterInText(contentLower);
-            if (charFromIni != null) {
-              print('ModManager: Виявлено персонажа "$charFromIni" в INI файлі ${path.basename(iniFile.path)} моду "$modName"');
-              return charFromIni;
-            }
-          } catch (e) {
-            // Ігноруємо помилки читання окремих файлів
-          }
-        }
-        
-        // Також перевіряємо імена папок всередині моду
-        final subdirs = await modDir
-            .list(recursive: false)
-            .where((entity) => entity is Directory)
-            .cast<Directory>()
-            .toList();
-        
-        for (final subdir in subdirs) {
-          final subdirName = path.basename(subdir.path).toLowerCase();
-          final charFromSubdir = _findCharacterInText(subdirName);
-          if (charFromSubdir != null) {
-            print('ModManager: Виявлено персонажа "$charFromSubdir" в папці "$subdirName" моду "$modName"');
-            return charFromSubdir;
-          }
-        }
-      }
-      }
-    } catch (e) {
-      print('ModManager: Помилка пошуку в файлах моду "$modName": $e');
+  /// Визначає персонажа за назвами моду — спершу за назвою папки, далі за
+  /// [extraNames] (зазвичай ім'я архіву). Раніше метод також сканував вміст
+  /// .ini файлів та імена підпапок, але назви персонажів там не стандартизовані
+  /// (випадкові коментарі, назви клавіш тощо), тож це давало хибні збіги —
+  /// зокрема підрядок "norma" у "NormalMap" чіпляв Норму. Назви файлів/папок —
+  /// найнадійніший сигнал, тому визначаємо лише за ними.
+  String? _detectCharacterFromName(String modName, {List<String> extraNames = const []}) {
+    for (final name in [modName, ...extraNames]) {
+      final detected = detectCharacterId(name);
+      if (detected != null) return detected;
     }
-    
-    // Розпізнаємо персонажа за іменем папки (бренд/реальне ім'я + аліаси)
-    final detected = detectCharacterId(nameLower);
-    if (detected == null) {
-      print('ModManager: Не вдалося визначити персонажа для "$modName"');
-    }
-    return detected;
+    print('ModManager: Не вдалося визначити персонажа для "$modName"');
+    return null;
   }
-  
-  /// Допоміжний метод для пошуку персонажа в тексті
-  String? _findCharacterInText(String text) => detectCharacterId(text);
 
   /// Автоматично визначає та встановлює теги для всіх модів
   /// Повертає кількість модів з визначеними тегами
@@ -594,7 +550,7 @@ class ModManagerService {
         }
 
         // Автоматично визначаємо тег з назви
-        final detectedChar = await _detectCharacterFromName(modName);
+        final detectedChar = _detectCharacterFromName(modName);
         if (detectedChar != null) {
           // Writes the in-folder sidecar and mirrors to config.json.
           await setModCharacter(modName, detectedChar);

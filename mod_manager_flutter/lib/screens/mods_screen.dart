@@ -3316,6 +3316,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       final archivesToExtract = <XFile>[];
       final successfullyExtractedArchives = <String>[];
       final tempFoldersToCleanup = <String>[];
+      // Extracted-folder path -> originating archive base name, used as an extra
+      // character-detection hint (the character is often in the archive name).
+      final detectionHints = <String, String>{};
 
       for (final file in files) {
         // Перевіряємо чи це архів
@@ -3351,6 +3354,12 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
             folderPaths.addAll(result.extractedFolders!);
             tempFoldersToCleanup.addAll(result.extractedFolders!);
             successfullyExtractedArchives.add(archiveFile.path);
+            final archiveBaseName = path.basenameWithoutExtension(
+              archiveFile.path,
+            );
+            for (final folder in result.extractedFolders!) {
+              detectionHints[folder] = archiveBaseName;
+            }
             print(
               'ModsScreen: Розархівовано ${result.extractedFolders!.length} папок з ${archiveFile.name}',
             );
@@ -3440,6 +3449,7 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       );
       final (importedMods, autoTags) = await modManagerService.importMods(
         folderPaths,
+        detectionHints: detectionHints,
       );
 
       // Закриваємо діалог прогресу
