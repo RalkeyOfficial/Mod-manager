@@ -148,3 +148,11 @@ type (Added / Changed / Fixed / Removed).
   same need in any view (the old tab ≡ the ALL view with the favorites filter
   on), so the dedicated tab was redundant. The per-mod favorite star and the
   favorites filter are unchanged.
+
+## 2.0.1
+
+### Fixed
+
+- Corrected Qingyi's misspelled character id (`quinqiy` → `qingyi`), so
+  downloaded or renamed Qingyi mods auto-categorise correctly instead of landing
+  in Unknown. Mods already tagged under the old id are remapped automatically.
