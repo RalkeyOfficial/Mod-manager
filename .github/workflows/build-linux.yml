@@ -1,0 +1,60 @@
+name: Build Linux Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: |
+          cd mod_manager_flutter
+          flutter pub get
+
+      - name: Build Linux Release
+        run: |
+          cd mod_manager_flutter
+          flutter build linux --release
+
+      - name: Create Portable Tarball
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then VERSION="${GITHUB_REF_NAME#v}"; else VERSION="dev"; fi
+          NAME="zzz-mod-manager-${VERSION}-linux-x86_64"
+          mkdir -p "output/$NAME"
+          cp -r mod_manager_flutter/build/linux/x64/release/bundle/* "output/$NAME/"
+          tar -C output -czf "output/${NAME}.tar.gz" "$NAME"
+          ls -lh output
+
+      - name: Upload Portable Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZZZ-Mod-Manager-Linux-Portable
+          path: output/*.tar.gz
+
+      # Optional: attach to the GitHub Release (same release the Windows job targets)
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: output/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
