@@ -8,8 +8,11 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
-    
+    # Pinned to 2022: windows-latest moved to a newer MSVC that turns the
+    # <experimental/coroutine> header used by flutter_inappwebview_windows into a
+    # hard error (STL1011). VS 2022's compiler still accepts it.
+    runs-on: windows-2022
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,10 +29,15 @@ jobs:
           flutter pub get
       
       - name: Build Windows Release
+        # Belt-and-suspenders: define the macro MSVC suggests so the deprecated
+        # <experimental/coroutine> header compiles even on a newer compiler. The
+        # CL env var is read directly by cl.exe for every compilation.
+        env:
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
         run: |
           cd mod_manager_flutter
           flutter build windows --release
-      
+
       - name: Create Portable ZIP
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
