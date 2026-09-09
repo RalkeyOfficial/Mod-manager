@@ -181,13 +181,13 @@ class ModOrigin {
 
   /// Value equality over **every** field, deliberately.
   ///
-  /// It exists for one caller — the mods screen's "did anything actually
-  /// change?" guard, which decides whether a rescan is allowed to push new state
-  /// into `charactersProvider`. That guard used to compare `ModInfo` field by
-  /// hand-written field, and the origin block was simply missing from the list:
-  /// a mod resolved through the resolve dialog was re-read from disk correctly,
-  /// judged unchanged, and its card kept showing the amber "needs attention"
-  /// mark until the tab was switched away and back.
+  /// It exists for one caller — the "did anything actually change?" guard in
+  /// `LibraryNotifier.rescan`, which decides whether a scan is allowed to
+  /// replace the library and rebuild the grid. While that guard compared
+  /// `ModInfo` field by hand-written field, the origin block was simply missing
+  /// from the list: a mod resolved through the resolve dialog was re-read from
+  /// disk correctly, judged unchanged, and its card kept showing the amber
+  /// "needs attention" mark until the tab was switched away and back.
   ///
   /// So this is exhaustive rather than "the fields something renders today".
   /// Narrowing it to the four the status slot happens to read would recreate the

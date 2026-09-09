@@ -19,6 +19,7 @@ import 'package:mod_manager_flutter/utils/state_providers.dart';
 
 import 'support/fake_http_transport.dart';
 import 'support/fixtures.dart';
+import 'support/library_override.dart';
 import 'support/localized_harness.dart';
 import 'support/origin_shorthand.dart';
 
@@ -62,7 +63,18 @@ void main() {
       List<String>? written,
     }) async {
       await tester.pumpWidget(const SizedBox());
-      container = ProviderContainer();
+      // Both halves, because the toolbar reads both: the **library** for what a
+      // check covers, and the **groups** for what the view can filter. Every
+      // mod in the groups is in the library once, which is the relationship the
+      // app's own scan produces.
+      final seen = <String>{};
+      container = ProviderContainer(overrides: [
+        libraryOf([
+          for (final group in groups)
+            for (final mod in group.skins)
+              if (seen.add(mod.id)) mod,
+        ]),
+      ]);
       addTearDown(container.dispose);
       container.read(charactersProvider.notifier).state = groups;
 

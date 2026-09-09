@@ -17,8 +17,9 @@ doc. This file is the map; the rules that must never be missed are in the
   `ProviderScope`. `MainScreen` is a sidebar + `AnimatedSwitcher` over three tabs:
   Mods (0), Marketplace (1), Settings (2), selected via `tabIndexProvider`.
   **The tabs are keyed children with no keep-alive**, so the inactive tab's
-  `State` is *disposed* — which is why anything that must survive a tab switch
-  takes its own snapshot.
+  `State` is *disposed* — which is why nothing a tab owns may be the only copy of
+  something another surface needs. The library is the case that decided the rule:
+  it belongs to `libraryProvider` (§3), not to the Mods tab.
 - **`services/`** — all business logic.
 - **`utils/state_providers.dart`** — the **central Riverpod provider registry**.
   All app state (current tab, characters, mods, theme, locale, activation mode)
@@ -94,10 +95,40 @@ that owns its reasoning:
 | `update_apply/` + `backup/` | how is an update written, and undone? | [applying-updates](applying-updates.md) |
 | `folder_contents.dart` | the one walk of a mod-shaped folder | [applying-updates](applying-updates.md) |
 
-`InstalledModsIndex` is reached through `installedModsIndexProvider`, which takes
-its **own** library snapshot rather than deriving from `charactersProvider` — see
-the tab-disposal note in §1. The marketplace invalidates it on open and after each
-install.
+### The library is a provider, and the root of everything about it
+
+`libraryProvider` (an `AsyncNotifier` in `state_providers.dart`) owns the scan and
+holds its result: every mod, once each, flat. **Everything else about the library
+is derived from it** — `modsProvider` is the plain-list view for readers that
+cannot await, `installedModsIndexProvider` builds `InstalledModsIndex` over the
+same read, and the Mods tab's `charactersProvider` groups are built from it for
+the sidebar (localized names, which is why they are written by the screen rather
+than derived here).
+
+Three rules follow, and each of them is a bug that has happened:
+
+- **A screen may not own the library.** The Mods tab is disposed while the user is
+  anywhere else (§1), so a library kept in its `State` is unrefreshable exactly
+  when installs are happening. The patch destination prompt asked such a list
+  which folders existed and was told: every one except the mod installed a minute
+  earlier.
+- **Whoever changes the folder invalidates the library**, and never just something
+  derived from it. `ref.invalidate(installedModsIndexProvider)` alone rebuilds the
+  index from the same cached scan, which answers for the library as it was.
+- **A question asked mid-install reads the disk**, not the provider — the archive
+  is being unpacked, so nothing has invalidated anything yet. That is the rule
+  `test/modal_freshness_test.dart` pins, and the two readers of it are the patch
+  destination prompt and the sibling preview.
+
+A scan is **4 ms warm, 12 ms cold** over a mirror of a real 23-mod / 748-file
+library, and building the index over it is **under 1 ms**, so a refresh is not
+something to design around.
+
+**An unchanged rescan publishes nothing.** `rescan()` compares what it read with
+what it holds (`listEquals` over `ModInfo`'s value equality) and keeps the old
+list when they match, which is what stops the grid rebuilding after every toggle,
+rename and import. `library-screen.md` §1 is what that guard costs when a field
+escapes it.
 
 `folder_contents.dart` excludes `.zzz-mod-manager/` throughout: a sidecar image
 counted as a shipped resource would make a patch look complete.

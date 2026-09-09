@@ -9,6 +9,7 @@ import 'package:mod_manager_flutter/models/origin_enums.dart';
 import 'package:mod_manager_flutter/screens/components/launch_update_check_host.dart';
 import 'package:mod_manager_flutter/utils/state_providers.dart';
 
+import 'support/library_override.dart';
 import 'support/localized_harness.dart';
 import 'support/origin_shorthand.dart';
 
@@ -37,10 +38,6 @@ void main() {
                 provenance: OriginProvenance.downloaded,
               ),
       );
-
-  List<CharacterInfo> library(List<ModInfo> mods) => [
-        CharacterInfo(id: 'ellen', name: 'Ellen', skins: mods),
-      ];
 
   /// The mod page as the pass sees it: the file the user installed is gone from
   /// the list, which is the strongest verdict the comparator produces.
@@ -72,9 +69,16 @@ void main() {
 
   setUp(() {
     fetchCalls = 0;
-    container = ProviderContainer();
+    // Empty rather than absent, so nothing reaches the real scan: the host is
+    // being tested against a library that arrives, which `libraryLands` does.
+    container = ProviderContainer(overrides: [libraryOf(const [])]);
     addTearDown(container.dispose);
   });
+
+  /// A scan landing, as the host sees it. `put` is what the app's own targeted
+  /// updates use, so a test making a library appear does it the same way.
+  void libraryLands(List<ModInfo> mods) =>
+      container.read(libraryProvider.notifier).put(mods);
 
   Future<void> mount(
     WidgetTester tester, {
@@ -84,7 +88,7 @@ void main() {
     Future<List<GbMod>> Function(List<int>)? fetch,
   }) async {
     container.read(updateCheckOnLaunchProvider.notifier).state = enabled;
-    container.read(charactersProvider.notifier).state = library(mods);
+    libraryLands(mods);
 
     await pumpLocalized(
       tester,
@@ -105,7 +109,7 @@ void main() {
   /// The library scan landing after the host is already mounted — the real
   /// launch ordering, since `ModsScreen` scans on the way in.
   Future<void> scanLands(WidgetTester tester, List<ModInfo> mods) async {
-    container.read(charactersProvider.notifier).state = library(mods);
+    libraryLands(mods);
     await tester.pumpAndSettle();
   }
 

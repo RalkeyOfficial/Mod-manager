@@ -53,11 +53,11 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
     if (_librarySnapshotTaken) return;
     _librarySnapshotTaken = true;
 
-    // Re-snapshot the library every time this screen opens. `ModsScreen` is
-    // disposed while this one is up and nothing else keeps the snapshot current,
-    // so a mod imported or deleted over there would otherwise leave the "in
-    // library" badges describing a library that no longer exists. One scan,
-    // single-digit milliseconds; see `installedModsIndexProvider`.
+    // Re-read the library every time this screen opens, so the "in library"
+    // badges describe the library as it is rather than as the app last saw it —
+    // a mod added or deleted outside the app, or by a flow that finished after
+    // the last scan, is otherwise invisible here. One scan, single-digit
+    // milliseconds; see `libraryProvider`.
     //
     // **Here and not in `initState`.** `WidgetRef.invalidate` is the one member of
     // `ref` that resolves its container with `listen: true`, which registers an
@@ -67,7 +67,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
     // runs after `initState` and before the first build, so the snapshot is still
     // refreshed before anything watches it. The flag is what keeps it to once —
     // this also fires on a theme or locale change.
-    ref.invalidate(installedModsIndexProvider);
+    ref.invalidate(libraryProvider);
   }
 
   @override

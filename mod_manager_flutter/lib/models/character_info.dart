@@ -144,8 +144,9 @@ class ModInfo {
     );
   }
 
-  /// Value equality over **every** field, which is what `modGroupsChanged` uses
-  /// to decide whether a rescan may refresh the grid.
+  /// Value equality over **every** field, which is what `LibraryNotifier`
+  /// compares to decide whether a scan may replace the library and refresh the
+  /// grid.
   ///
   /// It replaced a hand-written field list there, and that list had failed
   /// silently twice — `origin`, then `keybinds` — each time leaving a surface

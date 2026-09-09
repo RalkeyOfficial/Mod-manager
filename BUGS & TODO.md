@@ -161,21 +161,6 @@ not download ourselves. What each confidence tier means and who may write it is
 [`docs/origin-tracking.md`](docs/origin-tracking.md); what an install copies from a
 mod page is [`docs/metadata-autofill.md`](docs/metadata-autofill.md).
 
-### Open around the read side (known, deliberately not built)
-
-- [ ] **Nothing keeps the library list live across a tab switch, and the third
-  reader of it arrived as a bug.** `ModsScreen` is a keyed child of an
-  `AnimatedSwitcher` with no keep-alive, so it is disposed on every tab change
-  and `initState` re-scans on the way back. `charactersProvider` — which only
-  that screen writes — therefore holds whatever the last visit to the Mods tab
-  produced, while `modsProvider` derives from it. The read side works around
-  that with its own snapshot, invalidated when the marketplace opens; the patch
-  destination prompt did not, so it offered a patch every mod **except** the
-  ones installed since that visit, including the base just installed for it.
-  Fixed where it bit, by reading the library off disk at the prompt. What the
-  fix does not do is stop the next reader making the same assumption, which is
-  what inverting the ownership below would.
-
 ### Open around metadata autofill (known, deliberately not built)
 
 - **A truncated gallery doesn't say it was truncated**, and on inspection that is
@@ -250,13 +235,6 @@ Two things are **refused rather than unbuilt**, both recorded in
   for a string-format dependency on server English, and the message names only
   the *first* bad id anyway — several dead ids would still need several round
   trips. Revisit only if the request count is ever measured as a problem.
-- [ ] **`_buildGroups` still owns the scan, and the flat list is derived from
-  it.** `modsProvider` is a derived `Provider` over `charactersProvider`, which is
-  the *opposite* direction to the tidier shape: scan into a flat list, derive the
-  character groups. Inverting it is what would let the library live outside
-  `ModsScreen`'s lifecycle, which is the filed item above ("nothing keeps the
-  library list live across a tab switch"). Both are one piece of work whenever it
-  is done.
 - **`_bHasFiles` on an update record is unreliable** — it reads `false` on a
   record whose `_aFileRowIds` names two files (measured on `549029`). Nothing
   reads it; noted so nothing starts to.

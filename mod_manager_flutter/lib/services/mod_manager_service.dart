@@ -844,42 +844,36 @@ class ModManagerService {
   /// files changed outside the app).
   void clearKeybindCache() => _keybindCache.clear();
 
-  /// Оновлює інформацію про персонажів, додаючи keybinds до модів
-  /// Приймає список персонажів і додає keybinds до кожного моду.
-  /// Keybinds are cached per mod, so a mod that appears in several groups
-  /// (Favorites / ALL / its character) is parsed at most once.
-  Future<List<CharacterInfo>> enrichCharactersWithKeybinds(
-    List<CharacterInfo> characters,
-  ) async {
+  /// Adds each mod's parsed keybinds to it, over the flat library list.
+  ///
+  /// Takes the flat list rather than the character groups because the grouping
+  /// is not a partition — a mod appears under its character *and* under "all" —
+  /// so a per-group walk parses and rebuilds the same folder several times to
+  /// reach the same answer. Every mod here is distinct, so the parse count is
+  /// the mod count.
+  ///
+  /// Returns the list unchanged if the parse fails: keybinds are something a
+  /// card *shows*, and a library that renders without them beats no library.
+  Future<List<ModInfo>> enrichModsWithKeybinds(List<ModInfo> mods) async {
     try {
-      // Warm the cache for every distinct mod once, concurrently. A mod can
-      // appear in several groups (Favorites / ALL / its character); parsing
-      // each unique folder's .ini files in parallel — rather than serially per
-      // skin occurrence — is what keeps the enrich step off the critical path.
-      final uniqueIds = <String>{
-        for (final character in characters)
-          for (final mod in character.skins) mod.id,
-      };
-      await Future.wait(uniqueIds.map(getModKeybinds));
+      // Parse concurrently rather than awaiting each in turn, which is what
+      // keeps the enrich step off the critical path of a scan.
+      await Future.wait(mods.map((mod) => getModKeybinds(mod.id)));
 
-      final updatedCharacters = <CharacterInfo>[];
-      for (final character in characters) {
-        final updatedMods = <ModInfo>[];
-        for (final mod in character.skins) {
-          // Cache hit after the warm-up above.
-          final keybinds = await getModKeybinds(mod.id);
-          if (keybinds != null && keybinds.isNotEmpty) {
-            updatedMods.add(mod.copyWith(keybinds: keybinds));
-          } else {
-            updatedMods.add(mod);
-          }
-        }
-        updatedCharacters.add(character.copyWith(skins: updatedMods));
+      final enriched = <ModInfo>[];
+      for (final mod in mods) {
+        // Cache hit after the warm-up above.
+        final keybinds = await getModKeybinds(mod.id);
+        enriched.add(
+          keybinds != null && keybinds.isNotEmpty
+              ? mod.copyWith(keybinds: keybinds)
+              : mod,
+        );
       }
 
-      return updatedCharacters;
+      return enriched;
     } catch (e) {
-      return characters;
+      return mods;
     }
   }
 }

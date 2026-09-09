@@ -306,13 +306,12 @@ Future<PatchInstallDecision?> decidePatchInstall(
 
 /// The library as it is **on disk, at the moment the prompt opens**.
 ///
-/// Never handed in from the widget tree. `modsProvider` derives from
-/// `charactersProvider`, which only `ModsScreen` writes — and that screen is a
-/// keyed child of a switcher with no keep-alive, so it is disposed while the
-/// marketplace is open and its list is as old as the last visit to the Mods
-/// tab. A patch installed straight after the mod it patches was therefore
-/// offered every folder in the library **except that one**, which is the folder
-/// the question is about.
+/// Read past `libraryProvider` rather than out of it, and that is not a doubt
+/// about the provider: this question is asked **in the middle of the install
+/// that changes the answer**, before anything invalidates the library. The
+/// folder the patch belongs in can be one the same archive unpacked seconds
+/// ago, and a patch installed straight after the mod it patches was offered
+/// every folder in the library **except that one**.
 ///
 /// One scan, and only for an install that has something to ask: 4 ms warm, 12 ms
 /// cold over a real 23-mod library, against a path that has just unpacked an

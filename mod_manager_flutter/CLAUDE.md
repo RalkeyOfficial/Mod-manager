@@ -89,9 +89,10 @@ Anything resolving a character from an id must handle both, plus the `unknown` p
 `utils/state_providers.dart` is the central registry — add global state there, not ad-hoc.
 One exception: `utils/marketplace_providers.dart` holds the marketplace's browsing session, which is one screen's state rather than the app's.
 
-**The three tabs are keyed `AnimatedSwitcher` children with no keep-alive**, so the inactive tab's `State` is *disposed* and `charactersProvider` — written only by `ModsScreen`, with `modsProvider` over it — is as old as the last visit.
-Anything that must outlive a tab switch takes its own snapshot (`installedModsIndexProvider`),
-and **a modal answering a question about the library reads it when it opens** (`test/modal_freshness_test.dart`).
+**The library is `libraryProvider` and belongs to no screen.** It owns the scan; `modsProvider` is its plain-list view, `installedModsIndexProvider` derives from it, and the Mods tab builds `charactersProvider`'s localized groups from it.
+So: **whoever changes a mod folder invalidates `libraryProvider`**, never only something derived from it — invalidating the index alone rebuilds it from the same cached scan.
+The three tabs are keyed `AnimatedSwitcher` children with no keep-alive, so the inactive tab's `State` is *disposed* and nothing a tab owns may be the only copy of something another surface needs.
+**A question asked mid-install reads the disk instead** — nothing has invalidated anything yet (`test/modal_freshness_test.dart`).
 
 **Work that outlives the press that started it must not be owned by a tab.** Its `BuildContext` dies on the next tab switch, silently and mid-await.
 Mount a host above the switcher instead — `DownloadQueueHost` in `main.dart` is the pattern, and `downloads.md` §8 is why.

@@ -226,10 +226,10 @@ miss the key.
   it is legal in `initState`, in a dialog builder, and in a plain function handed a
   context. **Capture it in a local before an `await`** and the report survives the
   widget being disposed.
-- **Capture the character id early too.** `ModsScreen` is *disposed* while the
-  marketplace is up, so `modsProvider` will not contain a mod the marketplace just
-  installed. Use the id the work already had (`remote.characterId`,
-  `mod.characterId`) rather than looking one up at report time. Never fall back to
+- **Capture the character id early too.** A mod the marketplace has just installed
+  is not in `modsProvider` until something rescans, and the report is raised before
+  that. Use the id the work already had (`remote.characterId`, `mod.characterId`)
+  rather than looking one up at report time. Never fall back to
   `detectCharacterId(name)` — a substring guess this codebase refuses to trust.
 - **Every notification is also logged**, once, from inside
   `NotificationCenter.show` — the funnel every raise already passes through.

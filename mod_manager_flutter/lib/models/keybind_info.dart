@@ -70,11 +70,11 @@ class KeybindInfo {
   /// Value equality, and it is load-bearing rather than tidiness.
   ///
   /// These are re-parsed from `.ini` on **every** library scan, so each scan
-  /// produces fresh instances describing identical bindings. Without this,
-  /// `modGroupsChanged` comparing them would see two different objects every
-  /// time and report a change on every scan — which is why that guard used to
-  /// skip keybinds entirely, and why editing a hotkey then left the grid
-  /// showing the old one.
+  /// produces fresh instances describing identical bindings. Without this, the
+  /// scan guard in `LibraryNotifier` would see two different objects every time
+  /// and report a change on every scan — which is why that guard once skipped
+  /// keybinds entirely, and why editing a hotkey then left the grid showing the
+  /// old one.
   ///
   /// Compared **order-independently on [keys]**, and [hashCode] has to agree:
   /// the map is a `LinkedHashMap` whose order follows the order lines appear in

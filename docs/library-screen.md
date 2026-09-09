@@ -11,21 +11,25 @@ specific to these widgets.
 
 ---
 
-## 1. A rescan only reaches the grid if `modGroupsChanged()` says so
+## 1. A rescan only reaches the grid if the library came back different
 
-`utils/mod_group_diff.dart`. A scan runs after every toggle, rename, edit and
-import, so `ModsScreen` guards `charactersProvider` behind a field-by-field
-comparison to avoid rebuilding the whole grid each time.
+The scan belongs to `libraryProvider` ([`app-architecture.md`](app-architecture.md)
+§3), and it runs after every toggle, rename, edit and import — most of which
+change one mod or nothing. So `rescan()` keeps the list it already holds when the
+new one compares equal, and the groups the grid draws are rebuilt only when the
+library is actually replaced.
 
-**That list is hand-written, and anything `ModInfo` gains that any surface renders
-has to be added to it.** It has already failed once exactly this way: `origin` was
-missing, so resolving a mod wrote the sidecar correctly, the rescan re-read it
-correctly, the guard said "unchanged", and the amber mark stayed on the card until
-the user switched tabs. Nothing threw.
+**The comparison is `ModInfo`'s own value equality, and that is the whole point.**
+While it was a hand-written field list it shipped the same silent bug twice:
+`origin` was missing, so resolving a mod wrote the sidecar correctly, the rescan
+re-read it correctly, the guard said "unchanged", and the amber mark stayed on the
+card until the user switched tabs; then `keybinds` was missing, so an edited hotkey
+kept showing the old key. Nothing threw either time.
 
-`origin` is now compared through `ModOrigin`'s value equality — which is why that
-model has `==` at all — so new *origin* fields are covered automatically. Nothing
-else on `ModInfo` is.
+A field is now covered by being a field — including everything inside the origin
+block, which is why `ModOrigin` has `==` at all. `test/library_change_test.dart`
+holds the cases, and pins that adding a field to `ModInfo` without an equality
+case fails there rather than on someone's card.
 
 ### Two keys decide whether a rebuild is felt
 

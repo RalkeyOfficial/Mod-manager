@@ -21,12 +21,12 @@ import 'support/temp_library.dart';
 
 /// **What a modal shows is read when it opens.**
 ///
-/// The rule exists because the library is not where it looks like it is.
-/// `modsProvider` derives from `charactersProvider`, which only `ModsScreen`
-/// writes — and that screen is a keyed child of a switcher with no keep-alive,
-/// so it is **disposed** while the marketplace is open. Anything that takes the
-/// library from the widget tree there is holding a list as old as the user's
-/// last visit to the Mods tab, and every install since is missing from it.
+/// The rule exists because `libraryProvider` is a **cache**: it holds what the
+/// last scan found, and these questions are asked at the one moment that is not
+/// good enough — in the middle of an install, about the folders that install is
+/// creating. A modal that takes the library out of the cache there is holding a
+/// list from before the archive was unpacked, and the mods missing from it are
+/// the ones the question is about.
 ///
 /// That is not a hypothetical: the patch destination prompt offered every folder
 /// in the library except the mod installed a minute earlier — the one the patch
@@ -56,7 +56,7 @@ void main() {
   /// A mod in the library **on disk only**. Nothing is told about it: no scan
   /// runs, no provider is written, no rescan is triggered. This is the state the
   /// library is in a second after an install from the marketplace.
-  void installedSinceTheTabWasOpen(String name, {String? archiveMd5}) {
+  void installedSinceTheLastScan(String name, {String? archiveMd5}) {
     temp.createMod(name);
     temp.write(name, 'ellen.ini', modIni('Textures/Body.dds'));
     temp.write(name, 'Textures/Body.dds', 'the base');
@@ -129,11 +129,11 @@ void main() {
       return [for (final mod in offered!) mod.id];
     }
 
-    testWidgets('offers a mod installed since the Mods tab was last open',
+    testWidgets('offers a mod installed since the last scan',
         (tester) async {
       // The reported bug, in one line: install the base, install its patch
       // without leaving the marketplace, and the base is not in the list.
-      installedSinceTheTabWasOpen('Ellen School');
+      installedSinceTheLastScan('Ellen School');
 
       expect(await offeredFolders(tester), contains('Ellen School'));
     });
@@ -142,8 +142,8 @@ void main() {
       // The stronger version, and the one a launch hits: the Mods tab has never
       // been opened, so the cached list is not merely old but empty — and the
       // prompt would not have offered a destination at all.
-      installedSinceTheTabWasOpen('Ellen Bikini');
-      installedSinceTheTabWasOpen('Ellen School');
+      installedSinceTheLastScan('Ellen Bikini');
+      installedSinceTheLastScan('Ellen School');
 
       final offered = await offeredFolders(tester);
       expect(offered, containsAll(<String>['Ellen Bikini', 'Ellen School']));
@@ -154,7 +154,7 @@ void main() {
       // Freshness in the direction that is worse to get wrong. Being offered a
       // folder that is gone means picking a destination the write then cannot
       // reach, and the reason the duplicate gate below invalidates first.
-      installedSinceTheTabWasOpen('Ellen School');
+      installedSinceTheLastScan('Ellen School');
       temp.deleteMod('Ellen School');
 
       expect(await offeredFolders(tester), isEmpty);
@@ -174,7 +174,7 @@ void main() {
               // Primes the cache with the library as it is *now*, which is what
               // opening the marketplace does.
               await ref.read(installedModsIndexProvider.future);
-              installedSinceTheTabWasOpen('Ellen School',
+              installedSinceTheLastScan('Ellen School',
                   archiveMd5: knownArchive);
               await confirmArchiveNotDuplicate(context, ref, md5);
             },

@@ -206,10 +206,10 @@ class _ModUpdateDialogState extends ConsumerState<ModUpdateDialog> {
   /// The other mods this mod's archive installed, for the notice below the
   /// verdict.
   ///
-  /// **Read on open rather than off a provider.** `charactersProvider` is
-  /// written only by the Mods tab, which is disposed while another tab is up, so
-  /// a cached list is as old as the last visit — and this dialog is reachable
-  /// from a card the marketplace just installed. See
+  /// **Read on open rather than off `libraryProvider`.** This dialog is
+  /// reachable from a card the marketplace has just installed, and the sibling
+  /// it is looking for is the mod that came out of the same archive — the one
+  /// most likely to be newer than the last scan. See
   /// `test/modal_freshness_test.dart`.
   ///
   /// A failure is silent: the notice is an aid to a dialog that works without

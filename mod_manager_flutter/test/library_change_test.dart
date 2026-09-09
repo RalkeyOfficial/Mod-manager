@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mod_manager_flutter/models/character_info.dart';
 import 'package:mod_manager_flutter/models/installed_file.dart';
@@ -7,17 +8,18 @@ import 'package:mod_manager_flutter/models/keybind_info.dart';
 import 'package:mod_manager_flutter/models/mod_ingest.dart';
 import 'package:mod_manager_flutter/models/mod_origin.dart';
 import 'package:mod_manager_flutter/models/origin_enums.dart';
-import 'package:mod_manager_flutter/utils/mod_group_diff.dart';
 
 import 'support/origin_shorthand.dart';
 
-/// The guard that decides whether a rescan is allowed to refresh the mods grid.
+/// **What counts as the library having changed.**
 ///
-/// It had no tests while it was a private method on a 2000-line `State`, and it
-/// shipped a silent bug: `ModInfo.origin` was never added to its field list, so
-/// a mod resolved through the resolve dialog was written to disk correctly,
-/// re-read correctly, judged "unchanged", and kept its amber "needs attention"
-/// mark on screen until the tab was switched away and back.
+/// `LibraryNotifier.rescan` keeps the list it already has when a scan comes back
+/// equal to it, which is what stops the grid rebuilding after every toggle and
+/// rename. The comparison is `listEquals` over [ModInfo]'s own value equality,
+/// so everything below is about that equality being exhaustive: while it was a
+/// hand-written field list it shipped the same silent bug twice — `origin`, then
+/// `keybinds` — each time leaving a card rendering yesterday's answer until the
+/// tab was switched away and back, with nothing thrown.
 void main() {
   ModInfo mod(
     String name, {
@@ -39,9 +41,11 @@ void main() {
   KeybindInfo bind(String section, String key) =>
       KeybindInfo(section: section, keys: {'key': key});
 
-  List<CharacterInfo> groups(List<ModInfo> mods) => [
-        CharacterInfo(id: 'all', name: 'All', skins: mods),
-      ];
+  /// The guard as `LibraryNotifier.rescan` applies it: a scan that comes back
+  /// equal to the library already in hand is not a change, and a first scan
+  /// always is one.
+  bool libraryChanged(List<ModInfo>? previous, List<ModInfo> next) =>
+      previous == null || !listEquals(previous, next);
 
   final untracked = originFixture(
     source: 'gamebanana',
@@ -51,14 +55,14 @@ void main() {
   );
 
   test('a first scan always counts as a change', () {
-    expect(modGroupsChanged(null, groups([mod('A')])), isTrue);
+    expect(libraryChanged(null, [mod('A')]), isTrue);
   });
 
   test('an identical rescan does not', () {
     // The whole reason the guard exists: a scan runs after every toggle and
     // rename, and rebuilding the grid each time is what it prevents.
     expect(
-      modGroupsChanged(groups([mod('A'), mod('B')]), groups([mod('A'), mod('B')])),
+      libraryChanged([mod('A'), mod('B')], [mod('A'), mod('B')]),
       isFalse,
     );
   });
@@ -72,9 +76,9 @@ void main() {
     // written, re-parsed and then thrown away here.
     test('editing a hotkey counts as a change', () {
       expect(
-        modGroupsChanged(
-          groups([mod('A', keybinds: [bind('KeySwap', 'VK_F7')])]),
-          groups([mod('A', keybinds: [bind('KeySwap', 'VK_F9')])]),
+        libraryChanged(
+          [mod('A', keybinds: [bind('KeySwap', 'VK_F7')])],
+          [mod('A', keybinds: [bind('KeySwap', 'VK_F9')])],
         ),
         isTrue,
         reason: 'the grid would keep showing the old hotkey',
@@ -86,13 +90,13 @@ void main() {
       // the `.ini` into new objects. Comparing them by identity reported a
       // change every time, which would turn the guard off entirely.
       expect(
-        modGroupsChanged(
-          groups([
+        libraryChanged(
+          [
             mod('A', keybinds: [bind('KeySwap', 'VK_F7'), bind('KeyUp', 'VK_UP')])
-          ]),
-          groups([
+          ],
+          [
             mod('A', keybinds: [bind('KeySwap', 'VK_F7'), bind('KeyUp', 'VK_UP')])
-          ]),
+          ],
         ),
         isFalse,
         reason: 'the guard fires on every scan and stops guarding anything',
@@ -103,20 +107,19 @@ void main() {
       final one = [bind('KeySwap', 'VK_F7')];
       final two = [bind('KeySwap', 'VK_F7'), bind('KeyUp', 'VK_UP')];
 
-      expect(modGroupsChanged(groups([mod('A', keybinds: one)]),
-          groups([mod('A', keybinds: two)])), isTrue);
-      expect(modGroupsChanged(groups([mod('A', keybinds: two)]),
-          groups([mod('A', keybinds: one)])), isTrue);
+      expect(libraryChanged([mod('A', keybinds: one)],
+          [mod('A', keybinds: two)]), isTrue);
+      expect(libraryChanged([mod('A', keybinds: two)],
+          [mod('A', keybinds: one)]), isTrue);
     });
 
     test('a mod that never had any is not mistaken for one that lost them', () {
       // `null` (never parsed a binding) and `[]` (parsed, found none) are
       // different values, and both are stable across scans — what would be a
       // bug is either of them flickering into the other.
-      expect(modGroupsChanged(groups([mod('A')]), groups([mod('A')])), isFalse);
+      expect(libraryChanged([mod('A')], [mod('A')]), isFalse);
       expect(
-        modGroupsChanged(
-            groups([mod('A')]), groups([mod('A', keybinds: const [])])),
+        libraryChanged([mod('A')], [mod('A', keybinds: const [])]),
         isTrue,
       );
     });
@@ -125,8 +128,8 @@ void main() {
   test('resolving a mod counts as a change', () {
     // The regression. Everything a user sees is identical except the origin
     // block, which is exactly what the status slot renders.
-    final before = groups([mod('Ellen Swimsuit', origin: untracked)]);
-    final after = groups([
+    final before = [mod('Ellen Swimsuit', origin: untracked)];
+    final after = [
       mod(
         'Ellen Swimsuit',
         origin: untracked.copyBase(
@@ -136,9 +139,9 @@ void main() {
           versionConfidence: OriginConfidence.user,
         ),
       ),
-    ]);
+    ];
 
-    expect(modGroupsChanged(before, after), isTrue);
+    expect(libraryChanged(before, after), isTrue);
   });
 
   test('every axis the status slot reads is caught on its own', () {
@@ -160,9 +163,9 @@ void main() {
 
     for (final entry in variants.entries) {
       expect(
-        modGroupsChanged(
-          groups([mod('A', origin: untracked)]),
-          groups([mod('A', origin: entry.value)]),
+        libraryChanged(
+          [mod('A', origin: untracked)],
+          [mod('A', origin: entry.value)],
         ),
         isTrue,
         reason: 'a mod that ${entry.key} must refresh the grid',
@@ -172,23 +175,23 @@ void main() {
 
   test('gaining or losing a block entirely counts', () {
     expect(
-      modGroupsChanged(groups([mod('A')]), groups([mod('A', origin: untracked)])),
+      libraryChanged([mod('A')], [mod('A', origin: untracked)]),
       isTrue,
     );
     expect(
-      modGroupsChanged(groups([mod('A', origin: untracked)]), groups([mod('A')])),
+      libraryChanged([mod('A', origin: untracked)], [mod('A')]),
       isTrue,
     );
   });
 
   test('the ordinary changes still register', () {
     expect(
-      modGroupsChanged(groups([mod('A')]), groups([mod('A', isActive: true)])),
+      libraryChanged([mod('A')], [mod('A', isActive: true)]),
       isTrue,
     );
-    expect(modGroupsChanged(groups([mod('A')]), groups([mod('B')])), isTrue);
-    expect(modGroupsChanged(groups([mod('A')]), groups([])), isTrue);
-    expect(modGroupsChanged(groups([mod('A')]), []), isTrue);
+    expect(libraryChanged([mod('A')], [mod('B')]), isTrue);
+    expect(libraryChanged([mod('A')], []), isTrue);
+    expect(libraryChanged([mod('A'), mod('B')], [mod('A')]), isTrue);
   });
 
   group('ModInfo value equality', () {
@@ -258,7 +261,8 @@ void main() {
       };
       for (final entry in cases.entries) {
         expect(full(), isNot(entry.value), reason: '${entry.key} was ignored');
-        expect(modChanged(full(), entry.value), isTrue, reason: entry.key);
+        expect(libraryChanged([full()], [entry.value]), isTrue,
+            reason: entry.key);
       }
     });
 

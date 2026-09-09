@@ -31,7 +31,10 @@ Future<bool> confirmArchiveNotDuplicate(
 ) async {
   if (archiveMd5 == null) return true;
 
-  ref.invalidate(installedModsIndexProvider);
+  // The library rather than the index built over it: the index is derived, so
+  // invalidating only the index would rebuild it from the same cached scan and
+  // answer for the library as it was before this install's siblings landed.
+  ref.invalidate(libraryProvider);
   final index = await ref.read(installedModsIndexProvider.future);
   final installedAs = index.installsOfArchive(archiveMd5);
   if (installedAs.isEmpty) return true;

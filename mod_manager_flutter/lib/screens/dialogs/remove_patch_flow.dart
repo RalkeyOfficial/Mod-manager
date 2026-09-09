@@ -147,7 +147,7 @@ Future<bool> removePatchFlow(
 
   // Pruning already ran with the snapshot, above.
   ref.invalidate(modBackupsProvider);
-  ref.invalidate(installedModsIndexProvider);
+  ref.invalidate(libraryProvider);
 
   if (!context.mounted) return true;
   if (result.failed.isEmpty) {

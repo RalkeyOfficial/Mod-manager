@@ -651,16 +651,14 @@ Two rules keep this safe, and both are pinned by tests in
   exception to that rule; it is on the other side of it.
 
 **The cost this did have, and it was not free.** Putting the block on the runtime
-view means the mods screen's rescan guard has to *notice* it. That guard
-(`utils/mod_group_diff.dart`) is a hand-written field comparison protecting
-`charactersProvider` from being rewritten on every scan, and `origin` was not in
-it — so a mod resolved through the resolve dialog was written to disk correctly,
-re-read correctly, judged unchanged, and went on rendering its old status badge
-until the tab was switched away and back. Nothing threw and no test failed.
-`ModOrigin` therefore has full value equality, so the guard compares the block as
-a whole and a *new origin field* is covered the day it is added. **Nothing else
-on `ModInfo` has that protection**: any other field a surface starts rendering
-must be added to that list by hand.
+view means the library's rescan guard has to *notice* it. While that guard was a
+hand-written field comparison, `origin` was not in it — so a mod resolved through
+the resolve dialog was written to disk correctly, re-read correctly, judged
+unchanged, and went on rendering its old status badge until the tab was switched
+away and back. Nothing threw and no test failed. `ModOrigin` therefore has full
+value equality, and the guard now compares whole `ModInfo` values
+([`library-screen.md`](library-screen.md) §1), so **a new field on either model is
+covered the day it is added** rather than the day someone remembers a list.
 
 ---
 

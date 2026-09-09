@@ -333,7 +333,7 @@ Future<bool> applyUpdateFlow(
 
     if (context.mounted) {
       ref.invalidate(modBackupsProvider);
-      ref.invalidate(installedModsIndexProvider);
+      ref.invalidate(libraryProvider);
 
       // **Only what this write settled may lose its mark**, which is neither
       // "all the targets" nor "all but the one the dialog was opened on". A
@@ -564,7 +564,7 @@ Future<bool> applyPatchUpdateFlow(
 
     // Pruning already ran with the snapshot, above.
     ref.invalidate(modBackupsProvider);
-    ref.invalidate(installedModsIndexProvider);
+    ref.invalidate(libraryProvider);
 
     if (!context.mounted) return true;
     await showUpdateResultDialog(context, mod: mod, file: file, result: result);
@@ -602,10 +602,10 @@ class _SiblingPreviews {
 
 /// Finds the mods this archive also installed, and previews the write into each.
 ///
-/// **The library is read here, when the question is asked**, rather than off a
-/// provider: the Mods tab owns `charactersProvider` and is disposed while the
-/// marketplace is open, so a cached list is as old as the last visit — and a mod
-/// installed since would be missing from a group it belongs to. See
+/// **The library is read here, when the question is asked**, rather than off
+/// `libraryProvider`: the mods this archive also installed are what the write is
+/// about, and one of them can have landed since the last scan — a group member
+/// missing from the list is a folder this write would silently skip. See
 /// `test/modal_freshness_test.dart`.
 ///
 /// **Nothing is read at all for a mod with no group**, which is every mod in a

@@ -296,11 +296,12 @@ class _DownloadQueueHostState extends ConsumerState<DownloadQueueHost> {
     if (!mounted) return;
     showInstallResult(context, result);
 
-    // The library just changed, and the "in library" badges on the marketplace
-    // grid are drawn from that snapshot. Invalidate rather than patch: the mod
-    // folder's final name is decided by the import (dedup, the combined-name
-    // dialog), so re-reading is the only way to be right about it.
-    ref.invalidate(installedModsIndexProvider);
+    // The library just changed, and both the Mods tab's grid and the
+    // marketplace's "in library" badges are drawn from it. Invalidate rather
+    // than patch: the mod folder's final name is decided by the import (dedup,
+    // the combined-name dialog), so re-reading is the only way to be right
+    // about it.
+    ref.invalidate(libraryProvider);
 
     if (result.mods.isNotEmpty) {
       queue.markDone(job.seq);

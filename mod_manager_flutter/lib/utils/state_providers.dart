@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/character_info.dart';
@@ -15,6 +18,7 @@ import '../services/mod_manager_service.dart';
 import '../services/origin_status.dart';
 import '../services/update_check.dart';
 import 'mod_sorting.dart';
+import 'zzz_characters.dart';
 
 // The marketplace's own browsing state (query, results, categories, open mod)
 // lives in `marketplace_providers.dart` — one screen's session rather than
@@ -49,27 +53,116 @@ final gameBananaClientProvider = Provider<GameBananaClient>((ref) {
 // `services/download/download_queue.dart`, for the same reason the notification
 // stack lives in `notifications.dart`.
 
+/// The library: every mod, once each, flat.
+///
+/// **The root everything else about the library derives from, and it belongs to
+/// no screen.** The three tabs are keyed children of an `AnimatedSwitcher` with
+/// no keep-alive, so the Mods tab's `State` is *disposed* the moment the user
+/// looks at the marketplace. A library owned by that screen is therefore as old
+/// as the last visit to it for as long as the user is anywhere else — and the
+/// mods missing from it are exactly the ones just installed, which is when a
+/// question about the library is most likely to be asked. The patch destination
+/// prompt asked one and was handed every folder except the mod it was for.
+///
+/// So the scan lives here. Anything that needs the library reads this: cached
+/// while it is good, awaited when it is cold, and refreshed by whoever changes
+/// the folder. One scan measured against a mirror of a real 23-mod / 748-file
+/// library is **4 ms warm, 12 ms cold**, so a refresh is not something to design
+/// around.
+///
+/// The groups the sidebar draws ([charactersProvider]) are built *from* this and
+/// carry localized names, which is why they stay presentation state written by
+/// the screen rather than a provider derived here.
+final libraryProvider =
+    AsyncNotifierProvider<LibraryNotifier, List<ModInfo>>(LibraryNotifier.new);
+
+/// Reads the library from disk, and holds what it read.
+class LibraryNotifier extends AsyncNotifier<List<ModInfo>> {
+  bool _scanning = false;
+
+  @override
+  FutureOr<List<ModInfo>> build() => _scan();
+
+  /// Reads the library again.
+  ///
+  /// **Keeps the list it already has when the scan finds it unchanged**, so the
+  /// grid is not torn down and rebuilt by the rescan that follows every toggle,
+  /// rename and import — most of which change one mod or nothing at all. The
+  /// comparison is [ModInfo]'s own value equality, so a field is covered by
+  /// being a field: the two times this was a hand-written field list it missed
+  /// one (`origin`, then `keybinds`) and the symptom was a card showing
+  /// yesterday's answer with nothing thrown.
+  Future<void> rescan() async {
+    if (_scanning) return;
+    _scanning = true;
+    try {
+      final scanned = await _scan();
+      final current = state.valueOrNull;
+      if (current == null || !listEquals(current, scanned)) {
+        state = AsyncValue.data(scanned);
+      }
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    } finally {
+      _scanning = false;
+    }
+  }
+
+  /// Replaces the library with a list built in memory.
+  ///
+  /// For a change whose effect on the library is already known — a rename, an
+  /// edit, a favourite, a delete — where a rescan would walk every folder to
+  /// learn what the caller just did.
+  void put(List<ModInfo> mods) {
+    state = AsyncValue.data(mods);
+  }
+
+  Future<List<ModInfo>> _scan() async {
+    final scanned = await ApiService.getMods();
+    final configService = await ApiService.getConfigService();
+    final favourites = configService.favoriteMods.toSet();
+
+    final mods = <ModInfo>[];
+    for (final mod in scanned) {
+      // characterId is resolved by the service (in-folder metadata, then the
+      // legacy config tag). Fall back to name-based auto-detection — using the
+      // shared detector (brief/real names + aliases, word-boundary aware) so
+      // names whose id differs from the spoken form (e.g. "Zhu Yuan" vs the id
+      // "zhuyuan") still resolve instead of dropping into Unknown.
+      var characterId = mod.characterId;
+      if (isUnassignedCharacterId(characterId)) {
+        characterId = detectCharacterId(mod.name) ?? characterId;
+      }
+
+      // Preserve all service-resolved metadata (image, description, url, tags,
+      // images, keybinds); only override the per-install bits here.
+      mods.add(
+        mod.copyWith(
+          characterId: characterId,
+          isFavorite: favourites.contains(mod.id),
+        ),
+      );
+    }
+
+    await configService.cleanupInvalidTags([for (final mod in mods) mod.id]);
+
+    final modManagerService = await ApiService.getModManagerService();
+    return modManagerService.enrichModsWithKeybinds(mods);
+  }
+}
+
 /// What the local library already has, keyed by remote identity.
 ///
-/// Its own snapshot rather than a view over [charactersProvider], for a reason
-/// that is structural: the three tabs are keyed children of an `AnimatedSwitcher`
-/// with no keep-alive, so `ModsScreen` is **disposed** while the marketplace is
-/// open and nothing is refreshing that list. Deriving badges from it would mean a
-/// mod installed from the marketplace stayed un-badged until the user visited the
-/// Mods tab — the one moment they cannot see the badge.
-///
-/// So this reloads instead, and the marketplace invalidates it when it opens and
-/// after every install. That costs one library scan per marketplace visit, which
-/// is cheap enough not to design around: measured against a mirror of a real
-/// 23-mod / 748-file library, the metadata pass over its sidecars is **4 ms warm,
-/// 12 ms cold**, and building the index from the result is **under 1 ms**. It is
-/// the same work the Mods tab's own scan already does.
+/// Derived from [libraryProvider], so a mod installed from the marketplace is
+/// badged as installed on the surface the user is looking at rather than after
+/// their next visit to the Mods tab — the one moment they cannot see the badge.
+/// Building the index over an already-scanned list is **under 1 ms**.
 ///
 /// Read it as `valueOrNull ?? InstalledModsIndex.empty`: while it loads, "nothing
 /// is known to be installed" renders no badge, which is the right way to be wrong.
 final installedModsIndexProvider =
     FutureProvider<InstalledModsIndex>((ref) async {
-  return InstalledModsIndex.fromMods(await ApiService.getMods());
+  return InstalledModsIndex.fromMods(await ref.watch(libraryProvider.future));
 });
 
 // Zoom scale provider
@@ -78,34 +171,32 @@ final zoomScaleProvider = StateProvider<double>((ref) => 1.0);
 // Tab index provider
 final tabIndexProvider = StateProvider<int>((ref) => 0);
 
-// Characters list
+/// The sidebar's groups: "ALL", the built-in categories, then every character
+/// that has a mod.
+///
+/// **Presentation state, built from [libraryProvider] by `ModsScreen`.** It is
+/// written rather than derived because the names in it are localized, and
+/// `AppLocalizations` is reached through a `BuildContext`. Nothing that asks a
+/// question *about the library* should read this — it is one screen's view of
+/// the answer, and that screen is disposed while the user is on another tab.
 final charactersProvider = StateProvider<List<CharacterInfo>>((ref) => []);
 
 // Selected character index
 final selectedCharacterIndexProvider = StateProvider<int>((ref) => 0);
 
-/// Every mod in the library, once each, regardless of which character group it
-/// is filed under.
+/// Every mod in the library, once each — as far as a synchronous reader is
+/// concerned.
 ///
-/// Derived rather than stored. It was a `StateProvider` that nothing ever wrote
-/// to and nothing ever read — a declaration that *looked* like the library list
-/// while the real one lived inside [charactersProvider]'s groups, which is
-/// exactly the kind of thing someone reaches for and gets an empty list from.
+/// The library itself is [libraryProvider]; this is the plain-list view of it
+/// for the widgets and derived providers that cannot await, and it is **empty
+/// while the first scan is still running**. Anything that must not mistake "not
+/// read yet" for "nothing installed" — a modal deciding what to offer, most
+/// obviously — awaits `libraryProvider.future` instead.
 ///
-/// Deduplicated by folder id because the grouping is not a partition: a mod
-/// appears under its character *and* under the "all" group. Anything asking a
-/// question about the whole library — the bulk update check, most obviously —
-/// wants this rather than [currentCharacterSkinsProvider], which is one tab's
-/// worth.
+/// Anything asking a question about the whole library wants this rather than
+/// [currentCharacterSkinsProvider], which is one tab's worth.
 final modsProvider = Provider<List<ModInfo>>((ref) {
-  final seen = <String>{};
-  final all = <ModInfo>[];
-  for (final character in ref.watch(charactersProvider)) {
-    for (final mod in character.skins) {
-      if (seen.add(mod.id)) all.add(mod);
-    }
-  }
-  return all;
+  return ref.watch(libraryProvider).valueOrNull ?? const <ModInfo>[];
 });
 
 // Search query provider

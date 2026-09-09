@@ -21,7 +21,6 @@ import '../services/update_apply/update_applier.dart';
 import '../utils/notifications.dart';
 import '../utils/state_providers.dart';
 import '../utils/categories.dart';
-import '../utils/mod_group_diff.dart';
 import '../utils/zzz_characters.dart';
 import '../l10n/app_localizations.dart';
 import 'components/mode_toggle_widget.dart';
@@ -81,8 +80,13 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
   bool _isOperationInProgress = false;
   bool _isLoadingMods = false;
 
-  // Cache for preventing unnecessary rebuilds
-  List<CharacterInfo>? _lastCharactersState;
+  /// The library the groups on screen were built from, by identity.
+  ///
+  /// `LibraryNotifier` keeps the same list when a scan finds nothing new, so
+  /// this is what stops the grid being rebuilt by the scan that follows every
+  /// toggle and rename. It starts null on a fresh `State`, which is what makes
+  /// coming back to this tab paint from the library already in hand.
+  List<ModInfo>? _groupedFrom;
 
   // Drag & drop state
   bool _isDragging = false;
@@ -116,6 +120,17 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     _modeToggleAnimation = CurvedAnimation(
       parent: _modeToggleAnimationController,
       curve: Curves.easeInOutCubic,
+    );
+
+    // The groups follow the library rather than being built alongside it, so a
+    // change made anywhere — an install landing from the queue, an update
+    // applied from a dialog — reaches the grid while this tab is up.
+    ref.listenManual<AsyncValue<List<ModInfo>>>(
+      libraryProvider,
+      (previous, next) {
+        final mods = next.valueOrNull;
+        if (mods != null) _showGroupsIfNeeded(mods);
+      },
     );
 
     _loadTags();
@@ -164,83 +179,25 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     });
 
     try {
-      final loadedMods = await ApiService.getMods();
+      // The scan itself belongs to `libraryProvider`, which outlives this
+      // screen; the groups it feeds are rebuilt by the listener in `initState`,
+      // and only when the library actually came back different.
+      await ref.read(libraryProvider.notifier).rescan();
+      final library = ref.read(libraryProvider);
+      if (library.hasError) throw library.error!;
+
+      // Also the path that paints on the way back into this tab: the `State`
+      // is new, so its groups have to be built from whatever the library holds
+      // — which the scan above has just confirmed or replaced.
+      _showGroupsIfNeeded(library.valueOrNull ?? const []);
+
+      // Reloaded after the scan's tag cleanup, which is what makes a tag for a
+      // deleted mod disappear from the menus.
       final configService = await ApiService.getConfigService();
-      final favoriteSet = configService.favoriteMods.toSet();
-      final List<ModInfo> allMods = [];
-      final List<String> validModIds = [];
-
-      for (var oldMod in loadedMods) {
-        validModIds.add(oldMod.id);
-
-        // characterId is resolved by the service (in-folder metadata, then the
-        // legacy config tag). Fall back to name-based auto-detection — using the
-        // shared detector (brief/real names + aliases, word-boundary aware) so
-        // names whose id differs from the spoken form (e.g. "Zhu Yuan" vs the
-        // id "zhuyuan") still resolve instead of dropping into Unknown.
-        String charId = oldMod.characterId;
-        if (isUnassignedCharacterId(charId)) {
-          charId = detectCharacterId(oldMod.name) ?? charId;
-        }
-
-        // Preserve all service-resolved metadata (image, description, url,
-        // tags, images, keybinds); only override the per-install bits here.
-        allMods.add(
-          oldMod.copyWith(
-            characterId: charId,
-            isFavorite: favoriteSet.contains(oldMod.id),
-          ),
-        );
-      }
-
-      // Очищуємо теги для видалених модів
-      await configService.cleanupInvalidTags(validModIds);
-
-      // Перезавантажуємо теги після очищення
       setState(() {
         modCharacterTags = configService.modCharacterTags;
-        favoriteMods = favoriteSet;
+        favoriteMods = configService.favoriteMods.toSet();
       });
-
-      // Group the flat list into the sidebar's character/category structure.
-      var characters = _buildGroups(allMods);
-
-      // Збагачуємо персонажів keybinds з INI файлів
-      try {
-        final modManagerService = await ApiService.getModManagerService();
-        characters = await modManagerService.enrichCharactersWithKeybinds(
-          characters,
-        );
-      } catch (e) {
-        _log.warning('could not load keybinds', error: e);
-        // Продовжуємо без keybinds у разі помилки
-      }
-
-      // Only update state if it actually changed to prevent unnecessary rebuilds
-      final previousCharacters = ref.read(charactersProvider);
-      final selectedIndex = ref.read(selectedCharacterIndexProvider);
-      String? previousSelectedId;
-      if (previousCharacters.isNotEmpty &&
-          selectedIndex >= 0 &&
-          selectedIndex < previousCharacters.length) {
-        previousSelectedId = previousCharacters[selectedIndex].id;
-      }
-
-      if (modGroupsChanged(_lastCharactersState, characters)) {
-        _lastCharactersState = List.from(characters);
-        ref.read(charactersProvider.notifier).state = characters;
-      }
-
-      if (previousSelectedId != null && characters.isNotEmpty) {
-        final newIndex = characters.indexWhere(
-          (char) => char.id == previousSelectedId,
-        );
-        ref.read(selectedCharacterIndexProvider.notifier).state = newIndex != -1
-            ? newIndex
-            : 0;
-      } else if (characters.isNotEmpty) {
-        ref.read(selectedCharacterIndexProvider.notifier).state = 0;
-      }
 
       // Reported here because the scan is the only thing that runs the backfill.
       await _reportBackfillWriteFailures();
@@ -328,21 +285,37 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     return characters;
   }
 
-  /// The current flat mod list, recovered from the "ALL" group in
-  /// [charactersProvider]. Returns null if the list hasn't been built yet, so
-  /// callers can fall back to a full [loadMods].
+  /// The library as it stands, to edit a copy of. Null before the first scan
+  /// has landed, so callers can fall back to a full [loadMods].
   List<ModInfo>? _currentAllMods() {
-    for (final char in ref.read(charactersProvider)) {
-      if (char.id == 'all') return List<ModInfo>.from(char.skins);
-    }
-    return null;
+    final mods = ref.read(libraryProvider).valueOrNull;
+    return mods == null ? null : List<ModInfo>.from(mods);
   }
 
-  /// Rebuilds [charactersProvider] from an updated flat mod list without a disk
-  /// rescan, keeping the selected character where possible. Backs the targeted
-  /// editorial-action handlers (rename/edit/favorite/delete) so a single-mod
-  /// action costs O(1) instead of an O(N) rescan of every mod.
+  /// Publishes an edited library without a disk rescan.
+  ///
+  /// Backs the targeted editorial-action handlers (rename/edit/favorite/delete)
+  /// so a single-mod action costs O(1) instead of an O(N) rescan of every mod.
+  /// The groups follow through the listener, like any other change to the
+  /// library — this is not a second way to reach the grid.
   void _applyGroups(List<ModInfo> allMods) {
+    ref.read(libraryProvider.notifier).put(allMods);
+  }
+
+  /// Rebuilds the groups, unless they were already built from this library.
+  void _showGroupsIfNeeded(List<ModInfo> allMods) {
+    if (identical(_groupedFrom, allMods)) return;
+    _groupedFrom = allMods;
+    _showGroups(allMods);
+  }
+
+  /// Rebuilds the sidebar's groups from the library, keeping the selected
+  /// character where possible: a group appearing or disappearing moves the
+  /// index while the user is still looking at the same character.
+  ///
+  /// **No `setState`**, deliberately: `build` watches `charactersProvider`, so
+  /// writing it is the rebuild.
+  void _showGroups(List<ModInfo> allMods) {
     final characters = _buildGroups(allMods);
 
     final previousCharacters = ref.read(charactersProvider);
@@ -354,7 +327,6 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       previousSelectedId = previousCharacters[selectedIndex].id;
     }
 
-    _lastCharactersState = List.from(characters);
     ref.read(charactersProvider.notifier).state = characters;
 
     if (previousSelectedId != null && characters.isNotEmpty) {
@@ -365,8 +337,6 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
     } else if (characters.isNotEmpty) {
       ref.read(selectedCharacterIndexProvider.notifier).state = 0;
     }
-
-    if (mounted) setState(() {});
   }
 
   /// Reflects a completed rename in the UI without a rescan. The folder op and
@@ -475,29 +445,22 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
 
       await ApiService.toggleMod(mod.id);
 
-      // Оновлюємо стан локально без перезавантаження всіх модів
-      if (mounted) {
-        final characters = ref.read(charactersProvider);
-        final updatedCharacters = characters.map((char) {
-          final updatedSkins = char.skins.map((skin) {
-            if (skin.id == mod.id) {
-              return skin.copyWith(isActive: !wasActive);
-            }
-            // Якщо single mode, деактивуємо інші моди того ж персонажа
-            if (!wasActive &&
+      // Flip the flags in the library rather than rescanning: the toggle is one
+      // link, and in single mode the same set of mods the call just deactivated.
+      final allMods = _currentAllMods();
+      if (mounted && allMods != null) {
+        _applyGroups([
+          for (final candidate in allMods)
+            if (candidate.id == mod.id)
+              candidate.copyWith(isActive: !wasActive)
+            else if (!wasActive &&
                 activationMode == ActivationMode.single &&
-                skin.characterId == mod.characterId &&
-                skin.id != mod.id &&
-                skin.isActive) {
-              return skin.copyWith(isActive: false);
-            }
-            return skin;
-          }).toList();
-          return char.copyWith(skins: updatedSkins);
-        }).toList();
-
-        ref.read(charactersProvider.notifier).state = updatedCharacters;
-        _lastCharactersState = List.from(updatedCharacters);
+                candidate.characterId == mod.characterId &&
+                candidate.isActive)
+              candidate.copyWith(isActive: false)
+            else
+              candidate,
+        ]);
       }
       _isOperationInProgress = false;
     } catch (e) {
