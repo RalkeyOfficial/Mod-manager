@@ -16,6 +16,14 @@ decisions made so far, not *how* to implement it. Items are grouped by area.
 > entries that are real. Recording a finding is not the same as filing a task:
 > if there is no action, do not give it a box.
 
+> **An entry opens with what the user meets, and closes with what we would do.**
+> The middle is the mechanism, in as much detail as the fix needs. Leading with
+> the mechanism is what makes this document hard to pick work out of: the reader
+> has to reconstruct the symptom from the cause before they can judge whether it
+> is worth doing. The closing line is one sentence in the form "we change it to
+> …" — a fix that cannot be stated that way is not understood well enough to be
+> filed yet, and saying so is the entry.
+
 ---
 
 ## Locked decisions
@@ -255,15 +263,16 @@ Two things are **refused rather than unbuilt**, both recorded in
 
 ### Open around applying an update (known, deliberately not built)
 
-- [ ] **There is no "update all".** The bulk check finds every mod with something
-  newer and the filter lists them, and then each one is a dialog. For the 3-of-128
-  case that is fine; for a library that has not been updated in months it is not.
-  The prerequisite exists (§7.6 shipped) and this is still not built,
-  deliberately: that screen currently only ever rewrites *sidecars*, and an
-  "update all" on it would download and overwrite mod folders from the same
-  button. The two need visibly different weight before they share a surface —
-  and each apply already has its own confirmation, its own snapshot and its own
-  stale-`.ini` question, none of which collapses into a checkbox.
+- **"Update all" is refused, not unbuilt.** The bulk check lists every mod with
+  something newer and each one is then its own dialog, which is tedious for a
+  library left alone for months — and it stays that way. One button that
+  downloads and overwrites many mod folders is the most destructive gesture in
+  the app, and running the applies back-to-back does not remove a single
+  question: every apply still needs its confirmation, its folder choice where a
+  patch is involved and its stale-`.ini` answer. What the user gets is the same
+  popups in a row they cannot see the end of, having already pressed the button
+  that agreed to all of them. The surfaces also carry different weight for a
+  reason: the bulk screen otherwise only ever rewrites *sidecars*.
 - [ ] **Nothing reports a group no folder claims.** Three ways to get one and
   all of them silent: a mod deleted outside the app, a folder duplicated in a
   file manager (both copies carry one uid, and an update to either prunes the
@@ -410,14 +419,16 @@ are [`docs/configuration.md`](docs/configuration.md).
   comment on the field. A separate first-load flag — or a limiter that is not
   inside the swapped subtree — would make the mistake unavailable rather than
   merely documented.
-- [ ] **Dark mode is surfaced but does not persist.**
-  `isDarkModeProvider` is a plain `StateProvider` written by its Settings switch
-  and by nothing else, so it resets on every launch. `config.json` even carries
-  a `theme` key — written by `_saveToFile`, read back by `loadFromFile`, and
-  **read by no UI at all**, so the value is round-tripped and then ignored. Not
-  folded into §6's work: it is already *surfaced*, which is what §6 was about,
-  and persisting it is a separate three-place change plus a decision about what
-  `theme` should hold now that it stores `'dark-blue'` rather than a boolean.
+- [ ] **Switching the theme does not save.** The Settings switch changes the app
+  at once and the choice is gone on the next launch, which every launch starts
+  dark — so it is invisible to anyone who wanted dark anyway, and the light
+  theme is effectively unreachable for longer than one session.
+  `isDarkModeProvider` is a plain `StateProvider` written by that switch and by
+  nothing else. `config.json` even carries a `theme` key — written by
+  `_saveToFile`, read back by `loadFromFile`, and **read by no UI at all**, so
+  the value is round-tripped and then ignored. Saving it is a three-place change
+  plus a decision about what `theme` should hold, now that it stores
+  `'dark-blue'` rather than a boolean.
 - [ ] **Two `allowsUnattendedUpdate` predicates have no reader and now never
   will.** `ModOrigin.allowsUnattendedUpdate` and
   `OriginConfidence.allowsUnattendedUpdate` (`origin_enums.dart`) — with
