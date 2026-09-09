@@ -95,6 +95,30 @@ void main() {
       expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
     });
 
+    testWidgets('too little space names both numbers', (t) async {
+      // "Not enough space" on its own is a dead end: the user has to know how
+      // much is missing to decide what to clear, and the row is where they see
+      // it — nothing was downloaded, so there is no modal left on screen.
+      final container = seeded([
+        job(
+          state: DownloadJobState.failed,
+          error: const InsufficientSpaceException(
+            'no room',
+            requiredBytes: 2254857830,
+            availableBytes: 734003200,
+          ),
+        ),
+      ]);
+
+      await pumpLocalized(t, const DownloadsPanel(), container: container);
+      expectBuilt(DownloadsPanel);
+
+      expect(find.textContaining('2.1 GB needed'), findsOneWidget);
+      expect(find.textContaining('700 MB free'), findsOneWidget);
+      // Retryable: clearing space and pressing it again is the way out.
+      expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+    });
+
     testWidgets('an install failure says so, and offers no re-download',
         (t) async {
       // The bytes arrived fine; what failed was the unpack. Calling that a

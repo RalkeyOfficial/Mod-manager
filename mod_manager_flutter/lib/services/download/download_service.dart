@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 
 import '../../utils/path_helper.dart';
 import '../log/logger.dart';
+import '../platform_service_factory.dart';
 import 'download_exceptions.dart';
 import 'download_handle.dart';
 import 'download_paths.dart';
@@ -47,6 +48,7 @@ class DownloadService {
     Directory? directory,
     DateTime Function()? now,
     IOSink Function(File file, FileMode mode)? openSink,
+    Future<int?> Function(String path)? freeSpace,
     this.stallTimeout = const Duration(seconds: 60),
     this.progressInterval = const Duration(milliseconds: 500),
     ResumePolicy policy = const ResumePolicy(),
@@ -67,11 +69,14 @@ class DownloadService {
           directory ?? Directory(PathHelper.getDownloadsPath()),
         ),
         _now = now ?? DateTime.now,
+        _freeSpace = freeSpace ??
+            PlatformServiceFactory.getInstance().freeSpaceBytes,
         _policy = policy;
 
   final DownloadPump _pump;
   final DownloadPaths _paths;
   final DateTime Function() _now;
+  final Future<int?> Function(String path) _freeSpace;
   final ResumePolicy _policy;
 
   /// Abort only after this long with **zero** bytes received.
@@ -104,6 +109,47 @@ class DownloadService {
     } catch (_) {
       // Housekeeping must never block a launch.
     }
+  }
+
+  /// Refuses a transfer the volume provably cannot hold, before it opens a
+  /// connection.
+  ///
+  /// **The number is exact rather than a guess, which is the only reason this
+  /// is allowed to refuse anything.** GameBanana's `_nFilesize` is the eventual
+  /// `Content-Length` to the byte, so what a transfer still needs is that minus
+  /// what is already on disk from a partial.
+  ///
+  /// **It counts every transfer in flight, not just this one.** Two of them run
+  /// at a time and both write into the same directory, so a 900 MB archive and
+  /// a 900 MB archive on a volume with 1 GB free are each individually fine and
+  /// together are not. Their remaining bytes are already committed to this
+  /// volume, so they are part of what this one has to fit alongside.
+  ///
+  /// Everything about it is skippable and none of it is load-bearing: an unknown
+  /// free space, an unknown file size or a request that needs nothing lets the
+  /// transfer run. Running out mid-transfer still fails the way it always did —
+  /// this only means the user usually hears about it before waiting for it.
+  Future<void> _requireSpaceFor(_Run run, int remainingForThisRun) async {
+    if (remainingForThisRun <= 0) return;
+
+    var required = remainingForThisRun;
+    for (final other in _runs) {
+      if (other != run) required += other.remainingBytes;
+    }
+
+    final available = await _freeSpace(_paths.directory.path);
+    if (available == null || required <= available) return;
+
+    _log.warning('refused for space', fields: {
+      'required': required,
+      'available': available,
+      'in_flight': _runs.length,
+    });
+    throw InsufficientSpaceException(
+      'Not enough free space for the download',
+      requiredBytes: required,
+      availableBytes: available,
+    );
   }
 
   /// Clears junk left by crashes and abandoned downloads. Runs once, lazily.
@@ -210,6 +256,19 @@ class _Run {
         'mod_${request.fileId ?? 'download'}${path.extension(request.url.path)}',
   );
 
+  /// What this transfer has still to write, for the space preflight of the
+  /// *next* one — bytes this volume owes but does not hold yet.
+  ///
+  /// `_total` once the server has answered, the API's size before that, and
+  /// zero when neither is known: a transfer of unknown length cannot be
+  /// counted, and guessing one would refuse downloads over an invented number.
+  int get remainingBytes {
+    final total = _total ?? request.expectedSize;
+    if (total == null) return 0;
+    final left = total - _received;
+    return left > 0 ? left : 0;
+  }
+
   Future<void> execute() async {
     try {
       await service._sweepOnce();
@@ -247,6 +306,15 @@ class _Run {
 
     var record = await _resumableRecord(recordFile, partFile, filename);
     final onDisk = record == null ? 0 : await _sizeOf(partFile);
+
+    // Before the connection, so a refusal costs nothing and says so while the
+    // user is still looking at the button they pressed. Only on the first
+    // attempt: the internal retry below re-enters with the same file, and a
+    // volume that fit it a second ago is not the failure being recovered from.
+    if (attempt == 1) {
+      final expected = request.expectedSize;
+      if (expected != null) await service._requireSpaceFor(this, expected - onDisk);
+    }
 
     _emit(DownloadState.connecting);
     if (_cancelled) throw const DownloadCancelledException();

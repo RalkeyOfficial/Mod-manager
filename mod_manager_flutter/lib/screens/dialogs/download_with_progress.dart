@@ -11,6 +11,7 @@ import '../../services/download/download_job.dart';
 import '../../services/download/download_progress.dart';
 import '../../services/download/download_queue.dart';
 import '../../services/download/queue_policy.dart';
+import '../../utils/byte_format.dart';
 import '../../utils/notifications.dart';
 import 'progress_modal.dart';
 
@@ -157,6 +158,17 @@ Future<DownloadResult?> downloadFileWithProgress(
       notify.error(
         loc.t('marketplace.download_stalled_title'),
         body: loc.t('marketplace.download_stalled_body'),
+        characterId: characterId,
+      );
+    } else if (e is InsufficientSpaceException) {
+      // The numbers rather than the mod's name: nothing was attempted, so what
+      // the user needs is how much short they are.
+      notify.error(
+        loc.t('marketplace.download_space_title'),
+        body: loc.t('marketplace.download_space_body', params: {
+          'required': formatBytes(e.requiredBytes),
+          'available': formatBytes(e.availableBytes),
+        }),
         characterId: characterId,
       );
     } else {

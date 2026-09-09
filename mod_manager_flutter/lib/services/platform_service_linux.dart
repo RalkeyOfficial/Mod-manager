@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/df_output.dart';
 import '../utils/process_probe.dart';
 import 'log/logger.dart';
 import 'log/system_report.dart';
@@ -320,4 +321,15 @@ class LinuxPlatformService implements PlatformService {
     return null;
   }
 
+  /// `df -kP`, which every Linux carries: GNU coreutils, busybox and toybox all
+  /// implement the POSIX flags, where `--output=avail` is coreutils-only.
+  @override
+  Future<int?> freeSpaceBytes(
+    String forPath, {
+    ProcessProbe probe = const ProcessProbe(),
+  }) async {
+    final result = await probe.run('df', ['-kP', forPath]);
+    if (result == null || result.timedOut || result.exitCode != 0) return null;
+    return parseDfAvailableBytes(result.stdout);
+  }
 }

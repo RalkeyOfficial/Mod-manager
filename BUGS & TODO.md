@@ -327,14 +327,17 @@ landing spot, and the background queue.
 
 ### Filed while building the queue
 
-- [ ] **There is no preflight free-space check.**
-  `InsufficientSpaceException` has existed since M1 and nothing throws it. It
-  matters more with a queue than it did with one download at a time: several
-  archives now land in `<appData>/downloads` at once, `_nFilesize` gives an
-  exact total up front, and running the volume out mid-transfer fails as a
-  `DownloadWriteException` whose message says nothing about space. Dart has no
-  portable free-space API, so it needs a `PlatformService` method rather than a
-  `Platform.isX` branch.
+- [ ] **The extraction has no space check, only the download does.** Unpacking
+  writes into the mods folder, frequently a different volume from
+  `<appData>/downloads`, and nothing asks whether it fits: a 1.2 GB archive that
+  downloaded fine can still fill the library's disk on the way out of it. The
+  size to compare against is knowable — every extractor can list an archive's
+  uncompressed total before unpacking it — but `7z l` is a second process per
+  install, and the in-process `archive` package reads the central directory. So
+  the number costs something on one path and nothing on the other, which is the
+  decision to make. The refusal itself is
+  [`downloads.md`](docs/downloads.md) §4.1's, already built and already refusing
+  transfers on the numbers.
 - **A queued download cannot be reordered or paused.** The panel offers
   cancel, retry and dismiss; there is no "start this one first" and no
   pause-and-keep-the-partial, even though the service already supports exactly

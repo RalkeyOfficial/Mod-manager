@@ -77,6 +77,9 @@ void main() {
             transport: transport,
             directory: temp,
             progressInterval: const Duration(milliseconds: 10),
+            // Room for anything, and no `df` spawned per download: the space
+            // preflight has its own tests and is not what this file is about.
+            freeSpace: (_) async => 1 << 40,
           ),
         ),
       ],

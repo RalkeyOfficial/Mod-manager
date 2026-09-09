@@ -1,4 +1,6 @@
+import 'dart:ffi';
 import 'dart:io';
+import 'package:ffi/ffi.dart';
 import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pasteboard/pasteboard.dart';
@@ -333,8 +335,51 @@ class WindowsPlatformService implements PlatformService {
     return null;
   }
 
+  /// `GetDiskFreeSpaceExW`, through FFI rather than a process.
+  ///
+  /// **There is no `df` on Windows and no supported command that answers this.**
+  /// `wmic` is removed from current Windows, and `dir` prints the number as
+  /// localized prose that a parser would have to read in whatever language the
+  /// user's console is set to. PowerShell would answer, at half a second of
+  /// process startup per question — paid before every download in a queue.
+  ///
+  /// The **first** out-parameter is the one to read: free bytes *available to
+  /// the caller*, which is what a disk quota reduces and what the write will
+  /// actually be allowed to use. `lpTotalNumberOfFreeBytes` ignores quotas and
+  /// would promise room that a write cannot have.
+  ///
+  /// Any failure is null, including a path that does not exist yet.
+  @override
+  Future<int?> freeSpaceBytes(
+    String forPath, {
+    ProcessProbe probe = const ProcessProbe(),
+  }) async {
+    Pointer<Utf16>? directory;
+    Pointer<Uint64>? free;
+    try {
+      final kernel32 = DynamicLibrary.open('kernel32.dll');
+      final getDiskFreeSpaceExW = kernel32.lookupFunction<
+          Int32 Function(Pointer<Utf16>, Pointer<Uint64>, Pointer<Uint64>,
+              Pointer<Uint64>),
+          int Function(Pointer<Utf16>, Pointer<Uint64>, Pointer<Uint64>,
+              Pointer<Uint64>)>('GetDiskFreeSpaceExW');
+
+      directory = forPath.toNativeUtf16();
+      free = calloc<Uint64>();
+      final ok = getDiskFreeSpaceExW(directory, free, nullptr, nullptr);
+      if (ok == 0) return null;
+      return free.value;
+    } catch (error) {
+      _log.debug('could not read free space', fields: {'reason': '$error'});
+      return null;
+    } finally {
+      if (directory != null) calloc.free(directory);
+      if (free != null) calloc.free(free);
+    }
+  }
+
   // ===== Приватні методи =====
-  
+
 
   Future<bool> _isJunction(String dirPath) async {
     try {

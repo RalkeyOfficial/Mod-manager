@@ -280,6 +280,13 @@ String _failureLine(AppLocalizations loc, Object? error) => switch (error) {
       InstallFailure(:final message) => message,
       DownloadStalledException() => loc.t('downloads.failed_stalled'),
       DownloadNetworkException() => loc.t('downloads.failed_network'),
+      // Named with its numbers: the row has to say how much short the volume
+      // is, or "not enough space" is a dead end in a list of rows.
+      InsufficientSpaceException(:final requiredBytes, :final availableBytes) =>
+        loc.t('downloads.failed_space', params: {
+          'required': formatBytes(requiredBytes),
+          'available': formatBytes(availableBytes),
+        }),
       _ => loc.t('downloads.failed'),
     };
 

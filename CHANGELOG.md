@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Marketplace installs arrive with their description, screenshots and character tag filled in from the mod page.
 - Downloads run in the background, two at a time, and install themselves as they land.
   - Downloads resume where they left off and survive the app closing.
+  - A download that won't fit is refused before it starts, saying how much is needed and how much is free.
   - Downloads can be cancelled while running.
   - A sidebar button opens the list of downloads, where a failed one can be retried and finished ones cleared.
   - One notification shows overall download progress until the last one finishes.

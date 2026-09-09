@@ -78,4 +78,20 @@ abstract class PlatformService {
   /// begins with this, so it is what turns `/home/someone/.local/share/…` into
   /// `~/.local/share/…` on the way to a log line.
   String? get homeDirectoryPath;
+
+  /// Free bytes on the volume holding [forPath], or **null when that cannot be
+  /// asked** — the path does not exist, the tool is missing, the call failed.
+  ///
+  /// Here rather than at the call site because Dart exposes no portable free
+  /// space API at all, and the two platforms answer by completely different
+  /// means: Linux reads it out of `df`, Windows asks `kernel32` directly.
+  ///
+  /// **Null is a real answer and means "do not check".** Its one caller refuses
+  /// a download that provably will not fit, and a refusal is worse than a
+  /// failure when the number behind it is a guess — so an unknown free space
+  /// lets the transfer run and fail honestly if it must.
+  ///
+  /// Never throws, and bounded like every other probe here: a preflight must
+  /// not be able to hang the thing it is checking.
+  Future<int?> freeSpaceBytes(String forPath, {ProcessProbe probe});
 }

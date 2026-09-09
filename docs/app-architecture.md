@@ -70,7 +70,7 @@ Nothing here reloads mods in the running game. That is deliberate and
 
 The most important architectural decision. `PlatformService` (abstract) defines
 symlink creation/removal, app-data paths, the system description for the log
-header, and opening folders and URLs. `PlatformServiceFactory.getInstance()`
+header, free space on a volume, and opening folders and URLs. `PlatformServiceFactory.getInstance()`
 returns `LinuxPlatformService` (real symlinks) or `WindowsPlatformService`
 (junctions).
 

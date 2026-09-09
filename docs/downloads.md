@@ -125,6 +125,45 @@ behaviour is deliberately untested rather than tested behind a hole in that rule
 `200` answering a ranged request means *restart***: appending it would concatenate
 two copies into a corrupt archive that still looks plausible.
 
+## 4.1 The space preflight
+
+A transfer is **refused before it opens a connection** when the volume holding
+`<appData>/downloads` provably cannot hold what is still to be written. The user
+hears "2.1 GB needed, 700 MB free" while looking at the button they pressed,
+rather than a write error after twenty minutes — and `DownloadWriteException`,
+which is what running out mid-transfer raises, says nothing about space at all.
+
+**This is allowed to refuse only because the number is exact.** GameBanana's
+`_nFilesize` is the eventual `Content-Length` to the byte
+([`gamebanana-api.md`](gamebanana-api.md)), so what a transfer needs is that
+minus whatever a partial already holds. Three things therefore skip the check
+entirely, and none of them is a gap: an unknown free space, a file of unknown
+size, and a resume that needs nothing. **Refusing a download that would have fit
+is the one outcome worse than the failure this prevents**, so anything short of
+certainty runs the transfer.
+
+**It counts every transfer in flight, not just the one starting.** Two run at a
+time into the same directory, so two 900 MB archives on a volume with 1 GB free
+are each individually fine and together are not. A running transfer's remaining
+bytes are already committed to the volume, so they are part of what the next one
+has to fit beside — which is why the requirement in the message can exceed the
+size of the file being asked for.
+
+Free space itself comes from `PlatformService.freeSpaceBytes`, because Dart has
+no portable API for it and the two platforms answer by different means: Linux
+parses `df -kP` (POSIX flags, so busybox and toybox answer too, where
+`--output=avail` is coreutils-only), Windows calls `GetDiskFreeSpaceExW` through
+FFI. Windows has no `df` and no supported command that answers this — `wmic` is
+gone from current releases and `dir` prints the number as localized prose — while
+PowerShell would cost half a second of process startup per question, paid before
+every download in a queue. The FFI call reads
+`lpFreeBytesAvailableToCaller` rather than the total free bytes: a disk quota
+reduces the former, and the write only gets what the former promises.
+
+**The extraction is not covered.** Unpacking writes into the mods folder, which
+is frequently a different volume, so its space is a separate question that
+nothing asks yet.
+
 ## 5. The timeout is a stall timeout, never a total duration
 
 A legitimate transfer over a degraded CDN node runs ~25 minutes and must be allowed

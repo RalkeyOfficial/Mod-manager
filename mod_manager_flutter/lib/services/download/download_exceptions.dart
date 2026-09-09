@@ -61,17 +61,21 @@ class DownloadWriteException extends DownloadException {
   final Object? cause;
 }
 
-/// A preflight check found less free space than the file needs.
+/// A preflight check found less free space than the transfer needs.
 ///
-/// Only raised where free space is actually knowable; Dart exposes no portable
-/// API for it, so the check is best-effort and skipped when unavailable.
+/// **Both numbers are required, and that is the invariant that matters.** Dart
+/// exposes no portable free space API, so the check is skipped wherever the
+/// answer is unknown — which means a refusal can always say what it wanted and
+/// what it found, and a caller never has to phrase "there may not be room".
 class InsufficientSpaceException extends DownloadException {
   const InsufficientSpaceException(
     super.message, {
     required this.requiredBytes,
-    this.availableBytes,
+    required this.availableBytes,
   });
 
+  /// Everything in flight has still to write, this transfer included.
   final int requiredBytes;
-  final int? availableBytes;
+
+  final int availableBytes;
 }
