@@ -125,7 +125,14 @@ behaviour is deliberately untested rather than tested behind a hole in that rule
 `200` answering a ranged request means *restart***: appending it would concatenate
 two copies into a corrupt archive that still looks plausible.
 
-## 4.1 The space preflight
+## 4.1 The space preflights
+
+Every write an install makes is refused up front if it provably will not fit —
+the transfer on the downloads volume, the unpack on the temp volume. Neither is
+ever a guess: both numbers are read rather than estimated, which is the only
+reason a refusal is allowed at all.
+
+### The transfer
 
 A transfer is **refused before it opens a connection** when the volume holding
 `<appData>/downloads` provably cannot hold what is still to be written. The user
@@ -160,9 +167,35 @@ every download in a queue. The FFI call reads
 `lpFreeBytesAvailableToCaller` rather than the total free bytes: a disk quota
 reduces the former, and the write only gets what the former promises.
 
-**The extraction is not covered.** Unpacking writes into the mods folder, which
-is frequently a different volume, so its space is a separate question that
-nothing asks yet.
+### The unpack
+
+A separate question on a **different volume**, which is the part worth knowing:
+the archive sits in `<appData>/downloads` and is unpacked into a temp directory,
+which on most Linux desktops is a **tmpfs** — not the same disk at all, and
+filling it fills memory. `ArchiveService.extractArchive` owns the check because
+it owns the write, so an update applies through it too.
+
+**The size is read from the archive without unpacking it, and both formats are
+cheap enough to ask every time.** A zip carries every entry's uncompressed size
+in its central directory, which `InputFileStream` reaches with a seek: **a 360 MB
+zip is sized in 8 ms** with none of it read into memory. A rar or 7z is listed by
+the same 7-Zip that will extract it — `7z l -slt` over a 360 MB `.7z` **returns
+in 2 ms**, so what it costs is one process spawn. `-slt`'s one-field-per-line
+output is parseable where the default table is column-aligned prose with a
+localized summary. Of the three `Size` fields that output carries, only the bare
+one counts: `Packed Size` is what the archive already holds and `Physical Size`
+is the archive file itself.
+
+A refusal writes nothing, keeps the archive, and names both figures — the archive
+is the way out, so an install that could not unpack is retried by clearing space
+rather than by downloading again.
+
+### What is still uncovered
+
+The **copy out of the temp directory into the mods folder** — a third write on a
+third volume. Its size is known exactly by then, since the files are on disk, but
+`ModManagerService.importMods` reports failure by returning an empty list, so a
+refusal there has no way to say why yet.
 
 ## 5. The timeout is a stall timeout, never a total duration
 

@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A sidebar button opens the list of downloads, where a failed one can be retried and finished ones cleared.
   - One notification shows overall download progress until the last one finishes.
   - A download that has landed says it's unpacking, rather than going quiet between finishing and asking where the mod goes.
+- An archive that won't fit when unpacked is refused before unpacking, saying how much is needed and how much is free. The archive is kept, so clearing space and installing again is all it takes.
 - Mods record where they came from, so they can be checked for updates.
   - Existing mods are linked back to their GameBanana page from the source URL they already carry.
   - Mod cards show a mark for how well each mod is set up for update checking, and a toolbar button filters the library to the ones that need attention.

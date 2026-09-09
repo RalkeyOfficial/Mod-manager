@@ -182,6 +182,8 @@ Future<bool> applyUpdateFlow(
         loc,
         archivePath: download.file.path,
         reason: extraction.failure ?? ExtractFailure.other,
+        requiredBytes: extraction.requiredBytes,
+        availableBytes: extraction.availableBytes,
       );
       fail(lines.title, lines.body);
       return false;
@@ -454,6 +456,8 @@ Future<bool> applyPatchUpdateFlow(
         loc,
         archivePath: download.file.path,
         reason: extraction.failure ?? ExtractFailure.other,
+        requiredBytes: extraction.requiredBytes,
+        availableBytes: extraction.availableBytes,
       );
       fail(lines.title, lines.body);
       return false;

@@ -6,10 +6,11 @@ import 'package:mod_manager_flutter/services/archive_service.dart';
 
 /// What an unpack failure tells the user.
 ///
-/// One of the two reasons is something they can act on, and the wording has to
-/// differ for it: a missing 7-Zip means the download is fine and a tool is
-/// absent, where the generic message ("extract it by hand") implies the app has
-/// done all it can and the archive is the problem.
+/// Two of the three reasons are something they can act on, and the wording has
+/// to differ for each: a missing 7-Zip means the download is fine and a tool is
+/// absent, too little space means clearing some and pressing install again —
+/// where the generic message ("extract it by hand") implies the app has done
+/// all it can and the archive is the problem.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -51,6 +52,53 @@ void main() {
 
     expect(missing.title, isNot(other.title));
     expect(missing.body, isNot(other.body));
+  });
+
+  test('too little space names both sizes, and where the archive still is',
+      () {
+    final lines = extractFailureMessage(
+      en,
+      archivePath: archive,
+      reason: ExtractFailure.insufficientSpace,
+      requiredBytes: 2254857830,
+      availableBytes: 734003200,
+    );
+
+    expect(lines.body, contains('2.1 GB'));
+    expect(lines.body, contains('700 MB'));
+    expect(lines.body, contains(archive),
+        reason: 'nothing was unpacked, so the archive is the way out');
+    expect(lines.title, isNot(contains('7-Zip')));
+  });
+
+  test('too little space with no numbers falls back rather than saying null',
+      () {
+    // A caller that has not been updated to thread the two figures through must
+    // not render "needs null": the generic wording is still true, because the
+    // archive really is still sitting where it was.
+    final lines = extractFailureMessage(en,
+        archivePath: archive, reason: ExtractFailure.insufficientSpace);
+
+    expect(lines.body, isNot(contains('null')));
+    expect(lines.title, "Couldn't extract the archive");
+  });
+
+  test('the space message resolves in both locales', () async {
+    final uk = AppLocalizations(const Locale('uk'));
+    await uk.load();
+
+    for (final loc in [en, uk]) {
+      final lines = extractFailureMessage(
+        loc,
+        archivePath: archive,
+        reason: ExtractFailure.insufficientSpace,
+        requiredBytes: 2254857830,
+        availableBytes: 734003200,
+      );
+      expect(lines.title, isNot(startsWith('marketplace.')));
+      expect(lines.body, isNot(startsWith('marketplace.')));
+      expect(lines.body, contains('2.1 GB'));
+    }
   });
 
   test('every key it can reach resolves in both locales', () async {

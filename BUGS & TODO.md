@@ -327,17 +327,17 @@ landing spot, and the background queue.
 
 ### Filed while building the queue
 
-- [ ] **The extraction has no space check, only the download does.** Unpacking
-  writes into the mods folder, frequently a different volume from
-  `<appData>/downloads`, and nothing asks whether it fits: a 1.2 GB archive that
-  downloaded fine can still fill the library's disk on the way out of it. The
-  size to compare against is knowable — every extractor can list an archive's
-  uncompressed total before unpacking it — but `7z l` is a second process per
-  install, and the in-process `archive` package reads the central directory. So
-  the number costs something on one path and nothing on the other, which is the
-  decision to make. The refusal itself is
-  [`downloads.md`](docs/downloads.md) §4.1's, already built and already refusing
-  transfers on the numbers.
+- [ ] **The copy into the mods folder has no space check**, where the transfer
+  and the unpack now both have one ([`downloads.md`](docs/downloads.md) §4.1).
+  It is the third write of an install and the one on the user's own mod disk: a
+  mod that downloaded and unpacked fine can still half-copy into a full library
+  volume, leaving a folder that looks installed and is missing files. The size is
+  known exactly by then — the files are sitting in the temp directory — so what
+  is missing is not the number but somewhere to put the refusal:
+  `ModManagerService.importMods` reports failure by returning an empty list, and
+  a caller cannot tell "nothing to import" from "no room for it". Giving it a
+  result type is the work, and every other import failure would get a real
+  message out of the same change.
 - **A queued download cannot be reordered or paused.** The panel offers
   cancel, retry and dismiss; there is no "start this one first" and no
   pause-and-keep-the-partial, even though the service already supports exactly

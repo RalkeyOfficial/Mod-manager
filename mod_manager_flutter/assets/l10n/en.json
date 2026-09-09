@@ -37,6 +37,8 @@
     "extract_failed_body": "The file is still at {path}, so you can extract it by hand.",
     "extract_no_7zip_title": "7-Zip is needed for this archive",
     "extract_no_7zip_body": "RAR and 7z files need 7-Zip installed and on your PATH. The download is fine and is still at {path}.",
+    "extract_no_space_title": "Not enough space to unpack this",
+    "extract_no_space_body": "Unpacking needs {required} and only {available} is free. Nothing was unpacked, and the archive is still at {path}.",
     "download_cancel_button": "Cancel download",
     "download_stalled_title": "The download stopped responding",
     "download_stalled_body": "You can resume it by downloading again.",

@@ -103,6 +103,8 @@ Future<InstallResult> installArchiveFlow(
         loc,
         archivePath: archiveFile.path,
         reason: extractionResult.failure ?? ExtractFailure.other,
+        requiredBytes: extractionResult.requiredBytes,
+        availableBytes: extractionResult.availableBytes,
       );
       return InstallResult.error(lines.title, lines.body);
     }

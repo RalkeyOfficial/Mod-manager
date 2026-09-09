@@ -1,7 +1,12 @@
 import 'dart:io';
-import 'package:archive/archive.dart';
+// `archive_io` for `InputFileStream`, which is what lists a zip's contents
+// without reading the archive itself; it re-exports the decoders too.
+import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as path;
 
+import '../utils/byte_format.dart';
+import '../utils/process_probe.dart';
+import '../utils/seven_zip_listing.dart';
 import 'archive_hash.dart';
 import 'log/logger.dart';
 import 'platform_service_factory.dart';
@@ -16,6 +21,11 @@ enum ExtractFailure {
   /// A RAR or 7z archive with no 7-Zip on the system. The one failure the user
   /// can fix: nothing about the archive is wrong, we just cannot open it.
   missingSevenZip,
+
+  /// The unpacked files will not fit where they have to be written. Also
+  /// something the user can fix, and the numbers say by how much — see
+  /// [ArchiveExtractionResult.requiredBytes].
+  insufficientSpace,
 
   /// Everything else — a corrupt archive, a permission error, a format the
   /// tool rejected. Nothing to tell the user beyond where the file is.
@@ -43,12 +53,22 @@ class ArchiveExtractionResult {
   /// `services/archive_hash.dart`.
   final String? archiveMd5;
 
+  /// What the unpack needed and what the volume had, in bytes.
+  ///
+  /// Set only for [ExtractFailure.insufficientSpace], where they are the whole
+  /// message: "not enough space" without a number leaves the user guessing how
+  /// much to clear.
+  final int? requiredBytes;
+  final int? availableBytes;
+
   const ArchiveExtractionResult({
     required this.success,
     this.error,
     this.failure,
     this.extractedFolders,
     this.archiveMd5,
+    this.requiredBytes,
+    this.availableBytes,
   });
 
   factory ArchiveExtractionResult.successResult(
@@ -71,6 +91,23 @@ class ArchiveExtractionResult {
         success: false,
         error: error,
         failure: reason,
+      );
+
+  /// Refused before writing anything, because the unpack does not fit.
+  ///
+  /// The message is formatted rather than raw byte counts because one caller —
+  /// the drag-in path — shows `error` to the user verbatim.
+  factory ArchiveExtractionResult.noSpace({
+    required int requiredBytes,
+    required int availableBytes,
+  }) =>
+      ArchiveExtractionResult(
+        success: false,
+        error: 'Unpacking needs ${formatBytes(requiredBytes)}, '
+            '${formatBytes(availableBytes)} free',
+        failure: ExtractFailure.insufficientSpace,
+        requiredBytes: requiredBytes,
+        availableBytes: availableBytes,
       );
 }
 
@@ -130,6 +167,13 @@ class ArchiveService {
     /// Null for an archive nobody renamed — one the user dragged in or picked —
     /// where the file's own name is the right one.
     String? nameHint,
+
+    /// Free space on the volume being written to, for the preflight below.
+    ///
+    /// The same seam `DownloadService` takes, and for the same reason: the real
+    /// answer comes from a `df` this app spawns, and a test about *refusing* an
+    /// unpack cannot fill a disk to ask the question.
+    Future<int?> Function(String path)? freeSpace,
   }) async {
     final started = DateTime.now();
     try {
@@ -141,6 +185,25 @@ class ArchiveService {
         'archive': path.basename(archiveFile.path),
         'format': extension,
       });
+
+      // **Before either extractor writes a byte.** An unpack that runs the
+      // volume out leaves a half-written folder tree to clean up and reports an
+      // I/O error that names none of it, and the destination is `/tmp` — on
+      // most Linux desktops a tmpfs, so filling it fills memory.
+      final shortfall = await _spaceShortfall(
+        archiveFile,
+        tempExtractDir,
+        freeSpace ?? PlatformServiceFactory.getInstance().freeSpaceBytes,
+      );
+      if (shortfall != null) {
+        _log.warning('refused for space', fields: {
+          'archive': path.basename(archiveFile.path),
+          'required': shortfall.requiredBytes,
+          'available': shortfall.availableBytes,
+          'into': tempExtractDir.path,
+        });
+        return shortfall;
+      }
 
       bool isExtracted = false;
       String? extractionError;
@@ -201,6 +264,84 @@ class ArchiveService {
           fields: {'archive': path.basename(archiveFile.path)});
       return ArchiveExtractionResult.failure('Extraction failed: $error');
     }
+  }
+
+  /// The unpacked size of [archiveFile], or null when it cannot be read.
+  ///
+  /// **Both formats are asked without unpacking anything.** A zip carries every
+  /// entry's uncompressed size in its central directory, which
+  /// `InputFileStream` reaches with a seek rather than a read of the file — so
+  /// a 1.24 GB archive is listed in milliseconds. A rar or 7z is listed by the
+  /// same 7-Zip that will extract it, at the cost of one extra process.
+  ///
+  /// Null for a format nothing here handles, for a listing that fails, and for
+  /// an archive whose entries report nothing — every one of which means the
+  /// space check is skipped rather than guessed at.
+  static Future<int?> unpackedSize(File archiveFile) async {
+    final extension = path.extension(archiveFile.path).toLowerCase();
+    try {
+      if (extension == '.zip') return _unpackedZipSize(archiveFile);
+      if (extension == '.rar' || extension == '.7z') {
+        return await _unpackedSizeVia7Zip(archiveFile);
+      }
+    } catch (error) {
+      _log.debug('could not size the archive', fields: {
+        'archive': path.basename(archiveFile.path),
+        'reason': '$error',
+      });
+    }
+    return null;
+  }
+
+  static int? _unpackedZipSize(File archiveFile) {
+    final input = InputFileStream(archiveFile.path);
+    try {
+      final archive = ZipDecoder().decodeBuffer(input);
+      var total = 0;
+      for (final entry in archive) {
+        if (entry.isFile) total += entry.size;
+      }
+      return total > 0 ? total : null;
+    } finally {
+      input.closeSync();
+    }
+  }
+
+  static Future<int?> _unpackedSizeVia7Zip(File archiveFile) async {
+    final sevenZipPath = await _locate7Zip();
+    // No 7-Zip is not this method's failure to report: the extraction below
+    // reports it as the one thing the user can fix, and answering "unknown"
+    // here lets it get there.
+    if (sevenZipPath == null) return null;
+
+    final result = await const ProcessProbe(timeout: Duration(seconds: 10))
+        .run(sevenZipPath, ['l', '-slt', archiveFile.path]);
+    if (result == null || result.timedOut || result.exitCode != 0) return null;
+    return parseSevenZipUnpackedBytes(result.stdout);
+  }
+
+  /// A refusal when the unpack provably will not fit, or null to carry on.
+  ///
+  /// **Null covers three different unknowns, and all of them proceed**: the size
+  /// could not be read, the free space could not be read, or there is room. A
+  /// refusal is only ever issued against two real numbers, because refusing an
+  /// unpack that would have fit is worse than the failure this prevents — the
+  /// user has an archive they cannot install and no way to tell why.
+  static Future<ArchiveExtractionResult?> _spaceShortfall(
+    File archiveFile,
+    Directory destination,
+    Future<int?> Function(String path) freeSpace,
+  ) async {
+    final needed = await unpackedSize(archiveFile);
+    if (needed == null || needed <= 0) return null;
+
+    final available = await freeSpace(destination.path);
+    if (available == null || needed <= available) return null;
+
+    return ArchiveExtractionResult.noSpace(
+      requiredBytes: needed,
+      availableBytes: available,
+    );
   }
 
   static Future<bool> _extractZip(File archiveFile, Directory destination) async {

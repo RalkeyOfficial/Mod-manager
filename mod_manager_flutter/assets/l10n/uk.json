@@ -37,6 +37,8 @@
     "extract_failed_body": "Файл залишився в {path}, тож ви можете розпакувати його вручну.",
     "extract_no_7zip_title": "Для цього архіву потрібен 7-Zip",
     "extract_no_7zip_body": "Файли RAR і 7z потребують встановленого 7-Zip у PATH. Завантаження успішне, файл залишився в {path}.",
+    "extract_no_space_title": "Недостатньо місця для розпакування",
+    "extract_no_space_body": "Для розпакування потрібно {required}, а вільно лише {available}. Нічого не розпаковано, архів залишився в {path}.",
     "download_cancel_button": "Скасувати завантаження",
     "download_stalled_title": "Завантаження перестало відповідати",
     "download_stalled_body": "Ви можете продовжити його, завантаживши знову.",

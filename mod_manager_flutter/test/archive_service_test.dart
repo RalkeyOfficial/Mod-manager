@@ -268,4 +268,149 @@ void main() {
       expect(result.archiveMd5, await md5OfFile(File(archivePath)));
     }, skip: _sevenZip == null ? '7z not installed' : null);
   });
+
+  group('the space preflight', () {
+    /// The unpacked size of a zip whose contents are known, so a test can ask
+    /// for exactly one byte less than it needs.
+    Map<String, String> entries() => {
+          'Mod/mod.ini': 'x' * 1000,
+          'Mod/body.dds': 'y' * 4000,
+        };
+
+    test('an archive is sized without unpacking it', () async {
+      final zip = _makeZip(path.join(tmp.path, 'Mod.zip'), entries());
+
+      // The central directory carries every entry's uncompressed size, so this
+      // is a seek rather than a read — which is what makes it affordable in
+      // front of a 1.24 GB archive.
+      expect(await ArchiveService.unpackedSize(zip), 5000);
+    });
+
+    test('an unpack that does not fit is refused, and writes nothing',
+        () async {
+      final zip = _makeZip(path.join(tmp.path, 'Mod.zip'), entries());
+      final dest = Directory(path.join(tmp.path, 'out'))..createSync();
+
+      final result = await ArchiveService.extractArchive(
+        archiveFile: File(zip.path),
+        destinationDir: dest,
+        freeSpace: (_) async => 4999,
+      );
+
+      expect(result.success, isFalse);
+      expect(result.failure, ExtractFailure.insufficientSpace);
+      expect(result.requiredBytes, 5000);
+      expect(result.availableBytes, 4999);
+      expect(dest.listSync(), isEmpty,
+          reason: 'a refusal must not leave half an unpack behind');
+      expect(zip.existsSync(), isTrue,
+          reason: 'the archive is the way out, so it stays');
+    });
+
+    test('an unpack that fits exactly is allowed', () async {
+      // The boundary in the direction that matters: refusing an install that
+      // would have worked leaves the user with no way to install it at all.
+      final zip = _makeZip(path.join(tmp.path, 'Mod.zip'), entries());
+      final dest = Directory(path.join(tmp.path, 'out'))..createSync();
+
+      final result = await ArchiveService.extractArchive(
+        archiveFile: File(zip.path),
+        destinationDir: dest,
+        freeSpace: (_) async => 5000,
+      );
+
+      expect(result.success, isTrue, reason: result.error);
+    });
+
+    test('an unknown free space unpacks anyway', () async {
+      final zip = _makeZip(path.join(tmp.path, 'Mod.zip'), entries());
+      final dest = Directory(path.join(tmp.path, 'out'))..createSync();
+
+      final result = await ArchiveService.extractArchive(
+        archiveFile: File(zip.path),
+        destinationDir: dest,
+        freeSpace: (_) async => null,
+      );
+
+      expect(result.success, isTrue, reason: result.error);
+    });
+
+    test('the volume asked about is the one being written to', () async {
+      // Not the archive's own directory: a download sits in `<appData>` and is
+      // unpacked into a temp dir, which on most Linux desktops is a tmpfs — a
+      // different volume with a different, much smaller, amount of room.
+      final zip = _makeZip(path.join(tmp.path, 'Mod.zip'), entries());
+      final dest = Directory(path.join(tmp.path, 'out'))..createSync();
+
+      final asked = <String>[];
+      await ArchiveService.extractArchive(
+        archiveFile: File(zip.path),
+        destinationDir: dest,
+        freeSpace: (p) async {
+          asked.add(p);
+          return 1 << 30;
+        },
+      );
+
+      expect(asked, [dest.path]);
+    });
+
+    test('a 7z is sized by the tool that will unpack it', () async {
+      final source = Directory(path.join(tmp.path, 'src', 'Mod'))
+        ..createSync(recursive: true);
+      File(path.join(source.path, 'mod.ini')).writeAsStringSync('x' * 1000);
+      File(path.join(source.path, 'body.dds')).writeAsStringSync('y' * 4000);
+
+      final archivePath = path.join(tmp.path, 'Mod.7z');
+      final made = Process.runSync(
+        _sevenZip!,
+        ['a', archivePath, path.join(tmp.path, 'src', 'Mod')],
+      );
+      expect(made.exitCode, 0, reason: made.stderr.toString());
+
+      // The listing's own numbers, not the archive's size on disk: this one
+      // compresses 5 KB of repeated bytes down to a few hundred.
+      expect(await ArchiveService.unpackedSize(File(archivePath)), 5000);
+    }, skip: _sevenZip == null ? '7z not installed' : null);
+
+    test('a 7z that does not fit is refused too', () async {
+      final source = Directory(path.join(tmp.path, 'src', 'Mod'))
+        ..createSync(recursive: true);
+      File(path.join(source.path, 'mod.ini')).writeAsStringSync('x' * 5000);
+
+      final archivePath = path.join(tmp.path, 'Mod.7z');
+      Process.runSync(
+        _sevenZip!,
+        ['a', archivePath, path.join(tmp.path, 'src', 'Mod')],
+      );
+
+      final dest = Directory(path.join(tmp.path, 'out'))..createSync();
+      final result = await ArchiveService.extractArchive(
+        archiveFile: File(archivePath),
+        destinationDir: dest,
+        freeSpace: (_) async => 100,
+      );
+
+      expect(result.failure, ExtractFailure.insufficientSpace);
+      expect(result.requiredBytes, 5000);
+      expect(dest.listSync(), isEmpty);
+    }, skip: _sevenZip == null ? '7z not installed' : null);
+
+    test('an unsupported format is not sized, and not refused', () async {
+      // Nothing here can unpack a `.tar.gz`, so the extraction reports the
+      // format — a space refusal in front of that would name the wrong problem.
+      final notAnArchive = File(path.join(tmp.path, 'mod.tar.gz'))
+        ..writeAsStringSync('not really');
+
+      expect(await ArchiveService.unpackedSize(notAnArchive), isNull);
+
+      final result = await ArchiveService.extractArchive(
+        archiveFile: notAnArchive,
+        destinationDir: Directory(path.join(tmp.path, 'out'))..createSync(),
+        freeSpace: (_) async => 0,
+      );
+
+      expect(result.failure, ExtractFailure.other);
+    });
+  });
 }

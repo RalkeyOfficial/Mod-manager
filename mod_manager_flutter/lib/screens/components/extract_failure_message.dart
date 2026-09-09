@@ -1,6 +1,7 @@
 import '../../l10n/app_localizations.dart';
 import '../../models/app_notification.dart';
 import '../../services/archive_service.dart';
+import '../../utils/byte_format.dart';
 
 /// What to say when an archive could not be unpacked.
 ///
@@ -22,9 +23,31 @@ NotificationLines extractFailureMessage(
   AppLocalizations loc, {
   required String archivePath,
   ExtractFailure reason = ExtractFailure.other,
+  int? requiredBytes,
+  int? availableBytes,
 }) {
+  // Its own branch rather than a third key in the switch: it is the one reason
+  // whose body is numbers rather than the archive's path, and it says the
+  // archive is still there in the same breath — nothing was written, so
+  // clearing space and pressing install again is all there is to do.
+  if (reason == ExtractFailure.insufficientSpace &&
+      requiredBytes != null &&
+      availableBytes != null) {
+    return NotificationLines(
+      loc.t('marketplace.extract_no_space_title'),
+      loc.t('marketplace.extract_no_space_body', params: {
+        'required': formatBytes(requiredBytes),
+        'available': formatBytes(availableBytes),
+        'path': archivePath,
+      }),
+    );
+  }
+
   final key = switch (reason) {
     ExtractFailure.missingSevenZip => 'marketplace.extract_no_7zip',
+    // Without its two numbers there is nothing to say beyond the generic
+    // wording, and the generic wording is true: the archive is where it was.
+    ExtractFailure.insufficientSpace => 'marketplace.extract_failed',
     ExtractFailure.other => 'marketplace.extract_failed',
   };
   return NotificationLines(
