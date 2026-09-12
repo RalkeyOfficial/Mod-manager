@@ -12,6 +12,7 @@ import '../utils/zzz_characters.dart';
 import 'backup/snapshot_service.dart';
 import 'config_service.dart';
 import 'gamebanana/remote_mod_metadata.dart';
+import 'import_result.dart';
 import 'ingest_origin_builder.dart';
 import 'log/logger.dart';
 import 'metadata_autofill.dart';
@@ -50,6 +51,11 @@ class ModManagerService {
   final SnapshotService _snapshots;
   final ModUid _uids;
 
+  /// Free space on the volume an import is about to write to. Injectable
+  /// because the real one spawns a `df`, and a test about refusing an import
+  /// cannot fill a disk to ask the question.
+  final Future<int?> Function(String path) _freeSpace;
+
   /// [snapshots] and [uids] are defaulted rather than required because they
   /// need no configuration — one reads the folder's own sidecar, the other is
   /// rooted in app-data. They are parameters at all so `deleteMod` can be
@@ -58,8 +64,11 @@ class ModManagerService {
     this._configService, {
     SnapshotService? snapshots,
     ModUid? uids,
+    Future<int?> Function(String path)? freeSpace,
   })  : _snapshots = snapshots ?? SnapshotService(),
         _uids = uids ?? ModUid(),
+        _freeSpace =
+            freeSpace ?? PlatformServiceFactory.getInstance().freeSpaceBytes,
         _platformService = PlatformServiceFactory.getInstance(),
         _iniParser = IniParserService(),
         // modsPath is read through a closure, not captured by value: the user
@@ -516,7 +525,7 @@ class ModManagerService {
   /// because the longest matching term wins). Same map shape as the two above,
   /// for the same reason. An unassigned value falls back to detection, so a mod
   /// filed under a non-character category still gets its name read.
-  Future<(List<String>, Map<String, String>)> importMods(
+  Future<ImportResult> importMods(
     List<String> folderPaths, {
     Map<String, String>? detectionHints,
     Map<String, ModOriginSeed>? originSeeds,
@@ -524,7 +533,22 @@ class ModManagerService {
   }) async {
     try {
       final (valid, _) = await validatePaths();
-      if (!valid) return (<String>[], <String, String>{});
+      if (!valid) {
+        return const ImportResult.failed(ImportFailure.libraryNotConfigured);
+      }
+
+      // Only the folders that will actually be copied: one the library already
+      // has is skipped below, so counting it would refuse an import over space
+      // nothing was going to use.
+      final toCopy = <String>[];
+      for (final folderPath in folderPaths) {
+        if (!await Directory(folderPath).exists()) continue;
+        final target = Directory(path.join(modsPath!, path.basename(folderPath)));
+        if (await target.exists()) continue;
+        toCopy.add(folderPath);
+      }
+      final shortfall = await _spaceShortfall(toCopy);
+      if (shortfall != null) return shortfall;
 
       final importedMods = <String>[];
       final autoTags = <String, String>{};
@@ -602,9 +626,62 @@ class ModManagerService {
         );
       }
 
-      return (importedMods, autoTags);
+      return ImportResult(imported: importedMods, autoTags: autoTags);
     } catch (e) {
-      return (<String>[], <String, String>{});
+      _log.error('import failed', error: e);
+      return const ImportResult.failed(ImportFailure.copyFailed);
+    }
+  }
+
+  /// A refusal when the library volume cannot hold [folderPaths], or null to
+  /// carry on.
+  ///
+  /// **The size is measured rather than estimated**: the files are already on
+  /// disk in the temp directory the archive was unpacked into, so this is a
+  /// walk of what the copy is about to write, to the byte.
+  ///
+  /// Null covers three unknowns and all of them proceed — nothing to copy, a
+  /// size that could not be read, a free space that could not be read. Refusing
+  /// an install that would have fitted leaves the user with a mod they cannot
+  /// install and nothing to clear.
+  Future<ImportResult?> _spaceShortfall(List<String> folderPaths) async {
+    if (folderPaths.isEmpty) return null;
+
+    var required = 0;
+    for (final folderPath in folderPaths) {
+      final size = await _bytesUnder(Directory(folderPath));
+      if (size == null) return null;
+      required += size;
+    }
+    if (required <= 0) return null;
+
+    final available = await _freeSpace(modsPath!);
+    if (available == null || required <= available) return null;
+
+    _log.warning('refused for space', fields: {
+      'required': required,
+      'available': available,
+      'folders': folderPaths.length,
+    });
+    return ImportResult.noSpace(
+      requiredBytes: required,
+      availableBytes: available,
+    );
+  }
+
+  /// Every byte under [directory], or null if it could not be walked.
+  Future<int?> _bytesUnder(Directory directory) async {
+    try {
+      var total = 0;
+      await for (final entity
+          in directory.list(recursive: true, followLinks: false)) {
+        if (entity is File) total += await entity.length();
+      }
+      return total;
+    } catch (e) {
+      _files.debug('could not size a folder',
+          fields: {'path': directory.path, 'reason': '$e'});
+      return null;
     }
   }
 
@@ -640,16 +717,15 @@ class ModManagerService {
 
   /// Installs [folderPaths] as subfolders of a single new mod named [modName]
   /// (e.g. a mod plus a dependency folder that must sit beside it). The whole
-  /// `<modName>` folder is what gets activated. Returns ([modName] on success,
-  /// otherwise the empty list, plus any auto-detected character tag) — the same
-  /// shape as [importMods] so callers can share result handling.
+  /// `<modName>` folder is what gets activated. Returns the same
+  /// [ImportResult] as [importMods] so callers can share result handling.
   ///
   /// [origin] describes where the merged folders came from. Scalar rather than
   /// a map because this produces exactly one mod — and for the same reason it
   /// never carries a sibling group. [knownCharacter] is the same fact
   /// `importMods` takes per folder: a character the caller was told rather than
   /// one to guess at, replacing name detection when it is set.
-  Future<(List<String>, Map<String, String>)> importCombinedMod(
+  Future<ImportResult> importCombinedMod(
     List<String> folderPaths,
     String modName, {
     String? detectionHint,
@@ -658,7 +734,9 @@ class ModManagerService {
   }) async {
     try {
       final (valid, _) = await validatePaths();
-      if (!valid) return (<String>[], <String, String>{});
+      if (!valid) {
+        return const ImportResult.failed(ImportFailure.libraryNotConfigured);
+      }
 
       final modsDir = Directory(modsPath!);
       if (!await modsDir.exists()) {
@@ -669,8 +747,14 @@ class ModManagerService {
       final targetDir = Directory(targetPath);
       // Existing mod with this name — treat as a duplicate (nothing installed).
       if (await targetDir.exists()) {
-        return (<String>[], <String, String>{});
+        return const ImportResult.nothing();
       }
+
+      // Before the folder is created, so a refusal leaves the library exactly
+      // as it was.
+      final shortfall = await _spaceShortfall(folderPaths);
+      if (shortfall != null) return shortfall;
+
       await targetDir.create(recursive: true);
 
       var copied = 0;
@@ -700,7 +784,7 @@ class ModManagerService {
         try {
           await targetDir.delete(recursive: true);
         } catch (_) {}
-        return (<String>[], <String, String>{});
+        return const ImportResult.failed(ImportFailure.nothingUsable);
       }
 
       if (origin != null) {
@@ -729,9 +813,10 @@ class ModManagerService {
         autoTags[modName] = detectedChar;
       }
 
-      return (<String>[modName], autoTags);
+      return ImportResult(imported: [modName], autoTags: autoTags);
     } catch (e) {
-      return (<String>[], <String, String>{});
+      _log.error('combined import failed', error: e);
+      return const ImportResult.failed(ImportFailure.copyFailed);
     }
   }
 

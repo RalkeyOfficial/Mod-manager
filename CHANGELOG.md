@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - One notification shows overall download progress until the last one finishes.
   - A download that has landed says it's unpacking, rather than going quiet between finishing and asking where the mod goes.
 - An archive that won't fit when unpacked is refused before unpacking, saying how much is needed and how much is free. The archive is kept, so clearing space and installing again is all it takes.
+- A mod that won't fit in your mods folder is refused before anything is copied there, saying how much is needed and how much is free.
 - Mods record where they came from, so they can be checked for updates.
   - Existing mods are linked back to their GameBanana page from the source URL they already carry.
   - Mod cards show a mark for how well each mod is set up for update checking, and a toolbar button filters the library to the ones that need attention.
@@ -108,6 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A missing 7-Zip is reported as a missing tool rather than a broken archive.
 - Importing a folder no longer follows symbolic links out of it.
 - A mod whose folder can't be written to is named instead of failing quietly.
+- An import that fails says what went wrong — no mods folder set, the copy failed, no room — instead of reporting that the mods are already in your library.
 - Editing a mod's hotkey updates the library straight away instead of after a tab switch.
 - Ukrainian counted messages use the right form of the noun.
 - Importing or deleting a mod no longer replays the "switched character" animation across the grid.

@@ -12,6 +12,7 @@ import '../../models/origin_enums.dart';
 import '../../services/api_service.dart';
 import '../../services/archive_service.dart';
 import '../../services/gamebanana/remote_mod_metadata.dart';
+import '../../services/import_result.dart';
 import '../../services/log/logger.dart';
 import '../../services/mod_manager_service.dart';
 import '../../services/update_apply/mod_activation_port.dart';
@@ -20,6 +21,7 @@ import '../../utils/gamebanana_url.dart';
 import '../../utils/notifications.dart';
 import '../../utils/state_providers.dart';
 import '../components/extract_failure_message.dart';
+import '../components/import_failure_message.dart';
 import 'duplicate_archive_dialog.dart';
 import 'import_selection_dialog.dart';
 import 'progress_modal.dart';
@@ -211,11 +213,11 @@ Future<InstallResult> installArchiveFlow(
     // this path the character came from the mod page in the first place, and
     // "Zhao Nicole → zhao" is the app narrating its own bookkeeping back at
     // someone who just wanted the mod installed.
-    final (importedMods, _) = directoriesToImport.isEmpty
+    final importResult = directoriesToImport.isEmpty
         // Everything went into an existing mod. Calling `importMods` with
         // nothing would answer "no mods imported", which the guard below reads
         // as a duplicate — a failure report for an install that is going fine.
-        ? (<String>[], <String, String>{})
+        ? const ImportResult.nothing()
         : plan.combine
         ? await modManager.importCombinedMod(
             directoriesToImport,
@@ -237,6 +239,20 @@ Future<InstallResult> installArchiveFlow(
                 if (remote.characterId case final id?) dir: id,
             },
           );
+
+    final importedMods = importResult.imported;
+
+    // A refusal is reported as itself: "you already have this mod" is the one
+    // thing that is certainly untrue when the volume was full or the copy threw.
+    if (importResult.failure case final failure?) {
+      final lines = importFailureMessage(
+        loc,
+        failure,
+        requiredBytes: importResult.requiredBytes,
+        availableBytes: importResult.availableBytes,
+      );
+      return InstallResult.error(lines.title, lines.body);
+    }
 
     if (importedMods.isEmpty && decision.writes.isEmpty) {
       return InstallResult.warning(

@@ -15,6 +15,7 @@ import '../models/mod_origin_seed.dart';
 import '../services/api_service.dart';
 import '../services/log/logger.dart';
 import '../services/archive_service.dart';
+import '../services/import_result.dart';
 import '../services/ingest_origin_builder.dart';
 import '../services/update_apply/mod_activation_port.dart';
 import '../services/update_apply/update_applier.dart';
@@ -26,6 +27,7 @@ import '../l10n/app_localizations.dart';
 import 'components/mode_toggle_widget.dart';
 import 'components/character_cards_list_widget.dart';
 import 'components/mod_card_widget.dart';
+import 'components/import_failure_message.dart';
 import 'components/mods_toolbar.dart';
 import 'components/mods_action_buttons.dart';
 import 'components/mods_empty_states.dart';
@@ -1573,12 +1575,12 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       }
 
       // Імпортуємо моди
-      final (importedMods, autoTags) = folderPaths.isEmpty
+      final importResult = folderPaths.isEmpty
           // Every folder went into a mod that already exists. Calling
           // `importMods` with nothing answers "no mods imported", which the
           // guard below reads as a duplicate — a failure report for an install
           // that is going fine.
-          ? (<String>[], <String, String>{})
+          ? const ImportResult.nothing()
           : combine
           ? await modManagerService.importCombinedMod(
               folderPaths,
@@ -1597,6 +1599,9 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         Navigator.of(context).pop();
         dialogShown = false;
       }
+
+      final importedMods = importResult.imported;
+      final autoTags = importResult.autoTags;
 
       // Nothing imported *and* nothing to write into an existing mod. With a
       // patch write pending this is an install going fine, not a duplicate.
@@ -1622,10 +1627,22 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
         }
 
         if (mounted) {
-          context.notify.warning(
-            loc.t('mods.snackbar.import_duplicates_title'),
-            body: loc.t('mods.snackbar.import_duplicates_body'),
-          );
+          // A refusal says what it was. Only a genuine "you already have these"
+          // carries no failure, and that is the one case this wording fits.
+          if (importResult.failure case final failure?) {
+            final lines = importFailureMessage(
+              loc,
+              failure,
+              requiredBytes: importResult.requiredBytes,
+              availableBytes: importResult.availableBytes,
+            );
+            context.notify.error(lines.title, body: lines.body);
+          } else {
+            context.notify.warning(
+              loc.t('mods.snackbar.import_duplicates_title'),
+              body: loc.t('mods.snackbar.import_duplicates_body'),
+            );
+          }
         }
         return;
       }

@@ -125,14 +125,14 @@ void main() {
     test('a told character beats what the name reads as', () async {
       final folder = await sourceFolder('Zhao Nicole');
 
-      final (imported, autoTags) = await service.importMods(
+      final result = await service.importMods(
         [folder],
         detectionHints: {folder: 'Zhao Nicole v2.zip'},
         knownCharacters: {folder: 'zhao'},
       );
 
-      expect(imported, ['Zhao Nicole']);
-      expect(autoTags, {'Zhao Nicole': 'zhao'});
+      expect(result.imported, ['Zhao Nicole']);
+      expect(result.autoTags, {'Zhao Nicole': 'zhao'});
       expect(await sidecarCharacter('Zhao Nicole'), 'zhao',
           reason: 'the sidecar is what survives a rename and a re-scan');
     });
@@ -142,9 +142,9 @@ void main() {
       // two paths is visible rather than asserted about in a comment.
       final folder = await sourceFolder('Zhao Nicole');
 
-      final (_, autoTags) = await service.importMods([folder]);
+      final result = await service.importMods([folder]);
 
-      expect(autoTags, {'Zhao Nicole': 'nicole'});
+      expect(result.autoTags, {'Zhao Nicole': 'nicole'});
     });
 
     test('an unassigned value falls back to detection', () async {
@@ -152,12 +152,12 @@ void main() {
       // must not lose the one its name would have given it.
       final folder = await sourceFolder('Ellen Swimsuit');
 
-      final (_, autoTags) = await service.importMods(
+      final result = await service.importMods(
         [folder],
         knownCharacters: {folder: ''},
       );
 
-      expect(autoTags, {'Ellen Swimsuit': 'ellen'});
+      expect(result.autoTags, {'Ellen Swimsuit': 'ellen'});
     });
 
     test('is per folder, like the hints and the seeds beside it', () async {
@@ -166,12 +166,13 @@ void main() {
       final told = await sourceFolder('Zhao Nicole');
       final guessed = await sourceFolder('Ellen Swimsuit');
 
-      final (_, autoTags) = await service.importMods(
+      final result = await service.importMods(
         [told, guessed],
         knownCharacters: {told: 'zhao'},
       );
 
-      expect(autoTags, {'Zhao Nicole': 'zhao', 'Ellen Swimsuit': 'ellen'});
+      expect(
+          result.autoTags, {'Zhao Nicole': 'zhao', 'Ellen Swimsuit': 'ellen'});
     });
   });
 
@@ -179,28 +180,28 @@ void main() {
     test('a told character beats what the name reads as', () async {
       final folder = await sourceFolder('Zhao Nicole');
 
-      final (imported, autoTags) = await service.importCombinedMod(
+      final result = await service.importCombinedMod(
         [folder],
         'Zhao Nicole',
         detectionHint: 'Zhao Nicole v2.zip',
         knownCharacter: 'zhao',
       );
 
-      expect(imported, ['Zhao Nicole']);
-      expect(autoTags, {'Zhao Nicole': 'zhao'});
+      expect(result.imported, ['Zhao Nicole']);
+      expect(result.autoTags, {'Zhao Nicole': 'zhao'});
       expect(await sidecarCharacter('Zhao Nicole'), 'zhao');
     });
 
     test('an unassigned value falls back to detection', () async {
       final folder = await sourceFolder('Ellen Swimsuit');
 
-      final (_, autoTags) = await service.importCombinedMod(
+      final result = await service.importCombinedMod(
         [folder],
         'Ellen Swimsuit',
         knownCharacter: null,
       );
 
-      expect(autoTags, {'Ellen Swimsuit': 'ellen'});
+      expect(result.autoTags, {'Ellen Swimsuit': 'ellen'});
     });
   });
 }

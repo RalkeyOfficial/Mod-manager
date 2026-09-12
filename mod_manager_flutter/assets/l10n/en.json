@@ -336,6 +336,16 @@
       "success_single": "Added {count} mod",
       "success_plural": "Added {count} mods"
     },
+    "import_failed": {
+      "no_space_title": "Not enough space in your mods folder",
+      "no_space_body": "Installing needs {required} and only {available} is free. Nothing was installed.",
+      "library_title": "No mods folder is set",
+      "library_body": "Choose where your mods live in Settings, then install again.",
+      "copy_title": "The mod couldn't be copied in",
+      "copy_body": "Nothing was installed. Check that your mods folder is writable.",
+      "nothing_title": "Nothing was installed",
+      "nothing_body": "None of the folders could be read."
+    },
     "keybinds": {
       "title": "Keybinds: {name}",
       "close": "Close",

@@ -327,17 +327,6 @@ landing spot, and the background queue.
 
 ### Filed while building the queue
 
-- [ ] **The copy into the mods folder has no space check**, where the transfer
-  and the unpack now both have one ([`downloads.md`](docs/downloads.md) §4.1).
-  It is the third write of an install and the one on the user's own mod disk: a
-  mod that downloaded and unpacked fine can still half-copy into a full library
-  volume, leaving a folder that looks installed and is missing files. The size is
-  known exactly by then — the files are sitting in the temp directory — so what
-  is missing is not the number but somewhere to put the refusal:
-  `ModManagerService.importMods` reports failure by returning an empty list, and
-  a caller cannot tell "nothing to import" from "no room for it". Giving it a
-  result type is the work, and every other import failure would get a real
-  message out of the same change.
 - **A queued download cannot be reordered or paused.** The panel offers
   cancel, retry and dismiss; there is no "start this one first" and no
   pause-and-keep-the-partial, even though the service already supports exactly

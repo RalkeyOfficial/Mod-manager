@@ -127,10 +127,11 @@ two copies into a corrupt archive that still looks plausible.
 
 ## 4.1 The space preflights
 
-Every write an install makes is refused up front if it provably will not fit —
-the transfer on the downloads volume, the unpack on the temp volume. Neither is
-ever a guess: both numbers are read rather than estimated, which is the only
-reason a refusal is allowed at all.
+Every write an install makes is refused up front if it provably will not fit, and
+there are three of them on three different volumes: the transfer into
+`<appData>/downloads`, the unpack into a temp directory, the copy into the mods
+folder. None of the three is ever a guess — every number is read or measured
+rather than estimated, which is the only reason a refusal is allowed at all.
 
 ### The transfer
 
@@ -190,12 +191,27 @@ A refusal writes nothing, keeps the archive, and names both figures — the arch
 is the way out, so an install that could not unpack is retried by clearing space
 rather than by downloading again.
 
-### What is still uncovered
+### The copy into the library
 
-The **copy out of the temp directory into the mods folder** — a third write on a
-third volume. Its size is known exactly by then, since the files are on disk, but
-`ModManagerService.importMods` reports failure by returning an empty list, so a
-refusal there has no way to say why yet.
+The third write, on a third volume, and the only one on the user's own mod disk.
+`ModManagerService.importMods` and `importCombinedMod` refuse before copying, so
+a full library volume leaves nothing behind rather than a folder that looks
+installed and is missing files — which the scan would then badge and offer to
+update.
+
+**The size is measured, not read from a header.** The files are already unpacked
+in the temp directory, so the requirement is a walk of exactly what the copy is
+about to write. Only the folders that *will* be copied count: one the library
+already has is skipped, and counting it would refuse an install over space
+nothing was going to use.
+
+**An import returns an `ImportResult`, and that is what a refusal needs.** A null
+failure with nothing imported means a genuine duplicate — the one reason an
+import installs nothing that is not a failure. A full disk, an unwritable
+library and an unset mods folder each carry their own `ImportFailure` and their
+own message (`import_failure_message.dart`), so none of them can be reported as
+a duplicate, which would send the user looking for a mod that was never
+installed.
 
 ## 5. The timeout is a stall timeout, never a total duration
 
@@ -374,10 +390,10 @@ happen.
 
 ### The pinned progress notification
 
-Raised by `DownloadQueueHost` and kept in step with the queue. Backgrounding a
-transfer takes away the modal dialog that used to *be* the progress report, and
-a download nobody can see is one the user assumes failed — so the report moves to
-the foreground without blocking it.
+Raised by `DownloadQueueHost` and kept in step with the queue. A backgrounded
+transfer has no modal to *be* its progress report, and a download nobody can see
+is one the user assumes failed — so the report sits in the foreground without
+blocking it.
 
 - **One card for the whole queue, never one per download.** The stack holds four
   and drops the oldest, so a card per job turns a five-mod queue into a wall and
