@@ -109,6 +109,66 @@ void main() {
     expect(ref.read(modsProvider), isEmpty);
   });
 
+  test('a rescan asked for during the first scan joins it', () async {
+    // **The launch ordering.** Something above the tabs reads the library —
+    // `LaunchUpdateCheckHost` does, through the bulk check's plan — which starts
+    // the first scan; the Mods tab then mounts and asks for one before that has
+    // landed. Two walks of the same folder at the same moment produce one
+    // answer, and the second publish tears the grid down to rebuild it
+    // identically.
+    installMod('Ellen School');
+    final ref = container();
+
+    final published = <List<ModInfo>>[];
+    ref.listen<AsyncValue<List<ModInfo>>>(libraryProvider, (_, next) {
+      final mods = next.valueOrNull;
+      if (mods != null) published.add(mods);
+    });
+
+    ref.read(libraryProvider);
+    await ref.read(libraryProvider.notifier).rescan();
+
+    expect(published, hasLength(1), reason: 'one scan, one answer');
+  });
+
+  test('a rescan does not return before the library is readable', () async {
+    // What the Mods tab does next is build its groups from `valueOrNull`, so a
+    // rescan that returns while the state is still loading paints an empty grid
+    // and then rebuilds it a frame later.
+    installMod('Ellen School');
+    final ref = container();
+
+    ref.read(libraryProvider);
+    await ref.read(libraryProvider.notifier).rescan();
+
+    expect(ref.read(modsProvider), isNotEmpty);
+  });
+
+  test('an edit made during the first scan survives it', () async {
+    // A rename or a delete knows exactly what it did. The scan that was already
+    // walking the folder when it happened is the older answer, whichever of the
+    // two finishes last.
+    installMod('Ellen School');
+    final ref = container();
+
+    ref.read(libraryProvider);
+    ref.read(libraryProvider.notifier).put([
+      ModInfo(
+        id: 'Renamed',
+        name: 'Renamed',
+        characterId: 'ellen',
+        isActive: false,
+      ),
+    ]);
+
+    // Waited out rather than awaited: the point is what the scan does when it
+    // lands *after* the edit, and `libraryProvider.future` already answers with
+    // the edit. A scan of this library is ~5 ms.
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+
+    expect(ref.read(modsProvider).single.id, 'Renamed');
+  });
+
   test('put replaces the library without touching the disk', () async {
     // The seam the targeted editorial actions use: a rename knows exactly what
     // it did, so it says so rather than paying for a walk of every folder.

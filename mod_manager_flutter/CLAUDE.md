@@ -91,6 +91,7 @@ One exception: `utils/marketplace_providers.dart` holds the marketplace's browsi
 
 **The library is `libraryProvider` and belongs to no screen.** It owns the scan; `modsProvider` is its plain-list view, `installedModsIndexProvider` derives from it, and the Mods tab builds `charactersProvider`'s localized groups from it.
 So: **whoever changes a mod folder invalidates `libraryProvider`**, never only something derived from it — invalidating the index alone rebuilds it from the same cached scan.
+**One walk of the folder at a time**: a `rescan()` during a running scan takes that answer, and a scan never overwrites an edit published while it was walking.
 The three tabs are keyed `AnimatedSwitcher` children with no keep-alive, so the inactive tab's `State` is *disposed* and nothing a tab owns may be the only copy of something another surface needs.
 **A question asked mid-install reads the disk instead** — nothing has invalidated anything yet (`test/modal_freshness_test.dart`).
 

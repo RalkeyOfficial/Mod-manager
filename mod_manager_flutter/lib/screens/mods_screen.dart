@@ -186,7 +186,12 @@ class _ModsScreenState extends ConsumerState<ModsScreen>
       // and only when the library actually came back different.
       await ref.read(libraryProvider.notifier).rescan();
       final library = ref.read(libraryProvider);
-      if (library.hasError) throw library.error!;
+      if (library.hasError) {
+        // With the scan's own stack: the error crossed a provider boundary to
+        // get here, and a bare `throw` would start the trace at this line —
+        // pointing at the screen for a failure that happened on the disk.
+        Error.throwWithStackTrace(library.error!, library.stackTrace!);
+      }
 
       // Also the path that paints on the way back into this tab: the `State`
       // is new, so its groups have to be built from whatever the library holds

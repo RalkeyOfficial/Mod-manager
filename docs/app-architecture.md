@@ -130,6 +130,18 @@ list when they match, which is what stops the grid rebuilding after every toggle
 rename and import. `library-screen.md` §1 is what that guard costs when a field
 escapes it.
 
+Two more rules keep that promise true at launch, where the provider is read from
+two places within a frame of each other — the bulk update check's plan reads it
+from above the tabs, then the Mods tab mounts and asks for a scan of its own:
+
+- **One walk at a time.** A `rescan()` that finds a scan already running takes
+  *that* answer rather than starting a second walk of the same folder, and waits
+  until it is published — the caller's next act is to read the library, and a
+  rescan that returned early would hand the grid an empty list to draw.
+- **A scan never overwrites an edit made while it was walking.** A rename or a
+  delete publishes what it already knows; a scan that started before it is the
+  older answer however late it lands, so it defers to what is there.
+
 `folder_contents.dart` excludes `.zzz-mod-manager/` throughout: a sidecar image
 counted as a shipped resource would make a patch look complete.
 

@@ -78,10 +78,41 @@ final libraryProvider =
 
 /// Reads the library from disk, and holds what it read.
 class LibraryNotifier extends AsyncNotifier<List<ModInfo>> {
-  bool _scanning = false;
+  /// The scan currently walking the folder, if any.
+  ///
+  /// **One walk at a time, whoever asked for it.** The first read of this
+  /// provider starts a scan, and at launch that read comes from above the tabs
+  /// — the bulk update check's plan reads the library — while the Mods tab
+  /// mounts a moment later and asks for one of its own. Two walks of the same
+  /// folder at the same moment produce one answer between them, and the second
+  /// publish tears the grid down to rebuild it identically.
+  Future<List<ModInfo>>? _inFlight;
+
+  /// Bumped by every publish that does not come from a scan.
+  ///
+  /// A rename or a delete knows exactly what it did; a scan that was already
+  /// walking the folder when it happened is the **older** answer, whichever of
+  /// the two finishes last.
+  int _generation = 0;
 
   @override
-  FutureOr<List<ModInfo>> build() => _scan();
+  FutureOr<List<ModInfo>> build() {
+    final generation = _generation;
+    return _track(_scan()).then((scanned) {
+      return _generation == generation
+          ? scanned
+          : state.valueOrNull ?? scanned;
+    });
+  }
+
+  /// Marks [scan] as the walk in progress, and unmarks it when it ends.
+  Future<List<ModInfo>> _track(Future<List<ModInfo>> scan) {
+    _inFlight = scan;
+    unawaited(scan.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
+      if (identical(_inFlight, scan)) _inFlight = null;
+    }));
+    return scan;
+  }
 
   /// Reads the library again.
   ///
@@ -92,19 +123,25 @@ class LibraryNotifier extends AsyncNotifier<List<ModInfo>> {
   /// being a field: the two times this was a hand-written field list it missed
   /// one (`origin`, then `keybinds`) and the symptom was a card showing
   /// yesterday's answer with nothing thrown.
+  /// **A scan already in progress is this call's answer**, rather than a second
+  /// walk of the same folder — and it is awaited to the point where the answer
+  /// is *published*, because the caller's next act is to read the library.
   Future<void> rescan() async {
-    if (_scanning) return;
-    _scanning = true;
+    final running = _inFlight;
+    if (running != null) {
+      await running.then<void>((_) {}, onError: (Object _) {});
+      await future.then<void>((_) {}, onError: (Object _) {});
+      return;
+    }
+
     try {
-      final scanned = await _scan();
+      final scanned = await _track(_scan());
       final current = state.valueOrNull;
       if (current == null || !listEquals(current, scanned)) {
         state = AsyncValue.data(scanned);
       }
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
-    } finally {
-      _scanning = false;
     }
   }
 
@@ -114,6 +151,7 @@ class LibraryNotifier extends AsyncNotifier<List<ModInfo>> {
   /// edit, a favourite, a delete — where a rescan would walk every folder to
   /// learn what the caller just did.
   void put(List<ModInfo> mods) {
+    _generation++;
     state = AsyncValue.data(mods);
   }
 
