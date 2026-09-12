@@ -549,6 +549,19 @@ commoner shape, since the single-folder rename absorption above is right for a l
 mod and wrong for a group — an archive that collapsed three folders into one would
 otherwise have every member absorb the same one.
 
+**With nothing left writable, the screen says what stopped each mod and stops
+there.** A group can refuse every one of its members while each member's own layout
+is fine, so "blocked" is *nothing is writable*, never *the layout is unreadable* —
+and a confirmation body below that title would describe a write that cannot happen,
+name the file being installed and offer to remove leftovers from folders nothing
+will touch.
+
+**A folder the write does not go into is named as unused, whichever member recorded
+it.** That list is the complement of what is written, so a refused member's folder
+belongs to it — including the primary's. It is deliberately *not* "belongs to no mod
+of yours": a contested folder does belong to one, and the refusal two sections above
+is what says so.
+
 **The write is per folder and not all-or-nothing.** Each member is deactivated,
 snapshotted, written and reactivated on its own, so one failing leaves the others
 correctly updated — and stopping would waste the download this exists to share. The
@@ -783,8 +796,8 @@ That is deliberately not "after a successful write": the snapshot comes **before
 copy, so one that failed part-way still added a whole folder to the budget, and a retry
 against a nearly full disk is exactly when this is load-bearing. It also means a write
 into several folders prunes between them rather than once at the end
-([§4](#one-archive-several-mods-one-download)), and that a rollback prunes at all —
-which it did not, before this rule was written down.
+([§4](#one-archive-several-mods-one-download)), and that a rollback's own safety copy
+is pruned on the same terms as any other.
 
 The numbers are **not user-configurable**; add a setting only if it is actually asked
 for.

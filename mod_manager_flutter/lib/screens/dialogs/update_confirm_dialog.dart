@@ -208,8 +208,10 @@ class _UpdateConfirmDialogState extends State<_UpdateConfirmDialog> {
     final writable = _writable;
     final nothingWritable = writable.isEmpty;
     // Null where the refusal is the group's rather than the layout's — the
-    // primary's own archive folder is fine, another mod just claims it too, and
-    // the refused list below is what says so.
+    // primary's own archive folder is fine, another mod just claims it too. The
+    // blocked body says so from the refused list instead; what it must not do
+    // is fall through to the confirmation, which describes a write that cannot
+    // happen and offers to remove leftovers from folders nothing will touch.
     final problem = nothingWritable ? widget.preview.layout.problem : null;
     final chosen = _chosen;
 
@@ -221,7 +223,7 @@ class _UpdateConfirmDialogState extends State<_UpdateConfirmDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
-            children: problem != null
+            children: nothingWritable
                 ? _blockedBody(problem)
                 : _confirmBody(chosen),
           ),
@@ -301,11 +303,17 @@ class _UpdateConfirmDialogState extends State<_UpdateConfirmDialog> {
   /// ever recorded about how this mod was installed, because `ingest` is
   /// written by this build and the whole pre-existing library predates it. The
   /// wording says that rather than implying something is broken.
-  List<Widget> _blockedBody(UpdateLayoutProblem problem) {
+  /// [problem] is null when the layout is fine and the **group** is what
+  /// refuses: every member, primary included, claims a folder another member
+  /// claims too. The refused list is the whole explanation there, so it is what
+  /// the body leads with — and it is never empty in that state, since nothing
+  /// being writable is what put us here.
+  List<Widget> _blockedBody(UpdateLayoutProblem? problem) {
     final key = switch (problem) {
       UpdateLayoutProblem.nothingToInstall => 'mods.update_apply.blocked_empty',
       UpdateLayoutProblem.layoutUnknown => 'mods.update_apply.blocked_unknown',
       UpdateLayoutProblem.layoutChanged => 'mods.update_apply.blocked_changed',
+      null => 'mods.update_apply.blocked_refused',
     };
     return [
       DialogNotice(
@@ -313,7 +321,10 @@ class _UpdateConfirmDialogState extends State<_UpdateConfirmDialog> {
         message: loc.t(key),
         emphasis: true,
       ),
-      if (widget.preview.layout.unused.isNotEmpty) ...[
+      // What stopped each mod, which in the group's case is the only thing that
+      // explains the refusal at all.
+      if (widget.refused.isNotEmpty) ..._refusedSection(),
+      if (problem != null && widget.preview.layout.unused.isNotEmpty) ...[
         const SizedBox(height: 12),
         DialogSection(
           title: loc.t('mods.update_apply.blocked_folders_heading'),

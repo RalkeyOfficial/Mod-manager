@@ -224,6 +224,34 @@ void main() {
       expect(result.targets, isEmpty);
       expect(result.refused.single.reason, SiblingRefusal.sourceCollision);
       expect(result.primaryRefused, SiblingRefusal.sourceCollision);
+      // Unused like any other refused member's folder: nothing writes it, and
+      // the primary is not an exception to what that list means.
+      expect(result.otherFolders, ['Ellen Everything v4']);
+    });
+
+    test('a collision between two siblings leaves its folder unused', () {
+      // The same collision with the primary standing clear of it. Both
+      // claimants are refused, so nobody writes the folder they contested — and
+      // it is named as unused on exactly the terms a refused member's folder
+      // always is.
+      final primary = mod('Ellen Red', group: 'g1', folders: ['Ellen Red']);
+      final first = mod('Ellen Blue', group: 'g1', folders: ['Ellen Blue']);
+      final second = mod('Ellen Cyan', group: 'g1', folders: ['ellen blue']);
+
+      final result = plan(
+        primary: primary,
+        library: [primary, first, second],
+        incoming: ['Ellen Red', 'Ellen Blue'],
+      );
+
+      expect(result.targets, isEmpty, reason: 'both claimants are refused');
+      expect(
+        result.refused.map((r) => r.mod.id),
+        containsAll(['Ellen Blue', 'Ellen Cyan']),
+      );
+      expect(result.otherFolders, ['Ellen Blue']);
+      // The primary claims a folder of its own and writes as normal.
+      expect(result.primaryRefused, isNull);
     });
 
     test('a group with no members left leaves the primary to update alone', () {

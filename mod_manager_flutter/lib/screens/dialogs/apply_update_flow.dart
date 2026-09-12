@@ -124,6 +124,12 @@ Future<bool> applyUpdateFlow(
 }) async {
   final loc = context.loc;
   final notify = context.notify;
+  // **The app's container, not this screen's `ref`.** A group write copies
+  // several folders in turn, so the user can be on another tab by the time it
+  // lands — and what reached the disk has to reach the library and the update
+  // marks whether or not anyone was still watching. `ref` dies with the widget;
+  // this does not.
+  final container = ProviderScope.containerOf(context, listen: false);
 
   // `mod` is captured before every await, so its character is safe to read on
   // any path below — including the catch blocks.
@@ -313,14 +319,12 @@ Future<bool> applyUpdateFlow(
       progress: progress,
       applier: applier,
       snapshots: snapshots,
-      // **The one thing the loop needs `ref` for**, handed in as a callback so
-      // the write itself holds none: `WidgetRef` throws once its widget is
-      // disposed, and a throw between the copy and `_recordOrigin` would leave
-      // a folder holding new files under a record naming the old version.
-      onSnapshotTaken: () {
-        if (!context.mounted) return;
-        ref.invalidate(modBackupsProvider);
-      },
+      // Handed in as a callback so the write itself holds no provider handle.
+      // The container rather than `ref` for the same reason as above: a
+      // `WidgetRef` throws once its widget is disposed, and a throw between the
+      // copy and `_recordOrigin` would leave a folder holding new files under a
+      // record naming the old version.
+      onSnapshotTaken: () => container.invalidate(modBackupsProvider),
       targets: chosen,
       modsPath: modsPath,
       remoteModId: remoteModId,
@@ -333,19 +337,17 @@ Future<bool> applyUpdateFlow(
 
     final outcome = summariseGroupWrite(applied, reinstall: reinstall);
 
-    if (context.mounted) {
-      ref.invalidate(modBackupsProvider);
-      ref.invalidate(libraryProvider);
+    container.invalidate(modBackupsProvider);
+    container.invalidate(libraryProvider);
 
-      // **Only what this write settled may lose its mark**, which is neither
-      // "all the targets" nor "all but the one the dialog was opened on". A
-      // folder the user unticked still has its update to take, one whose write
-      // failed needs its mark more than before, and a repair takes nothing —
-      // see `summariseGroupWrite`.
-      final notifier = ref.read(modUpdateChecksProvider.notifier);
-      notifier.state = {...notifier.state}
-        ..removeWhere((id, _) => outcome.settledMarks.contains(id));
-    }
+    // **Only what this write settled may lose its mark**, which is neither
+    // "all the targets" nor "all but the one the dialog was opened on". A
+    // folder the user unticked still has its update to take, one whose write
+    // failed needs its mark more than before, and a repair takes nothing —
+    // see `summariseGroupWrite`.
+    final notifier = container.read(modUpdateChecksProvider.notifier);
+    notifier.state = {...notifier.state}
+      ..removeWhere((id, _) => outcome.settledMarks.contains(id));
 
     // **One folder reports its failure as a notification, several report it in
     // the dialog.** With one mod the split is not the information and the

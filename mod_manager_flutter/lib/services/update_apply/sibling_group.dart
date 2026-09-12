@@ -252,8 +252,15 @@ SiblingGroupPlan planSiblingUpdates({
     kept.add(target);
   }
 
+  final primaryRefused = primarySource != null && contested(primarySource);
+
+  // **What this write actually goes into**, which is what [otherFolders] is the
+  // complement of. The primary is a member like any other here: a refused
+  // sibling's folder is named as unused, so a refused primary's has to be too —
+  // keeping it out would omit exactly one refused folder from that list, on no
+  // rule the screen could state.
   final claimed = <String>{
-    if (primarySource != null) primarySource.toLowerCase(),
+    if (primarySource != null && !primaryRefused) primarySource.toLowerCase(),
     for (final target in kept) target.source.toLowerCase(),
   };
 
@@ -264,9 +271,7 @@ SiblingGroupPlan planSiblingUpdates({
       for (final folder in incomingFolders)
         if (!claimed.contains(folder.toLowerCase())) folder,
     ]..sort(),
-    primaryRefused: primarySource != null && contested(primarySource)
-        ? SiblingRefusal.sourceCollision
-        : null,
+    primaryRefused: primaryRefused ? SiblingRefusal.sourceCollision : null,
   );
 }
 

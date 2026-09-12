@@ -645,6 +645,7 @@
       "blocked_empty": "The download contained no mod folders.",
       "blocked_unknown": "This mod was installed before the app started recording how archives were unpacked, and this download contains more than one folder — so which one is this mod is something only you can say.",
       "blocked_changed": "The archive's layout no longer matches how this mod was installed, so writing it over the folder could put files in the wrong place.",
+      "blocked_refused": "None of the mods this archive installed can take this download. What stopped each one is below.",
       "blocked_hint": "Download it from the Marketplace instead and install it as a new mod, then remove the old one once you're happy with it.",
       "blocked_folders_heading": "Folders in this download",
       "what_heading": "What's being installed",

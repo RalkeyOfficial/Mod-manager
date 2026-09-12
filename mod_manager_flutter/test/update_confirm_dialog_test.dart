@@ -516,6 +516,15 @@ void main() {
       expect(find.textContaining('the same folder'), findsOneWidget);
       expect(find.byType(FilledButton), findsNothing,
           reason: 'listing the primary as refused must make it unwritable');
+
+      // **And the body describes the refusal, not the write.** Nothing here can
+      // be written, so a screen that goes on to say which file is being
+      // installed, offers to remove leftovers and promises a saved copy first
+      // is describing a write that cannot happen — under a title that says it
+      // cannot happen.
+      expect(find.textContaining('Installing'), findsNothing);
+      expect(find.text('Mods this writes into'), findsNothing);
+      expect(find.textContaining('None of the mods'), findsOneWidget);
     });
 
     testWidgets('a contested primary is not offered alongside a clear sibling',

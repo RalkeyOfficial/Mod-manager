@@ -211,7 +211,7 @@ it — nothing on disk records that two folders came from one archive. Two mods 
 a `mod_id` after a backfill is therefore common and expected (observed twice in a
 23-mod library), and must not be read as a group.
 
-That refusal has a price, now that something reads the field: a backfilled library
+That refusal has a price: a backfilled library
 gets **no grouped updates, ever**, and updating three mods that did come from one
 archive downloads it three times. The alternative — treating a shared `mod_id` as a
 group — would write one mod's archive over another mod's folder, which is why the
