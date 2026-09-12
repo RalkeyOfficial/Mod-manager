@@ -8,6 +8,7 @@ import '../utils/notifications.dart';
 import '../utils/state_providers.dart';
 import '../utils/zzz_characters.dart';
 import '../l10n/app_localizations.dart';
+import 'components/settings/appearance_section.dart';
 import 'components/settings/diagnostics_section.dart';
 import 'components/settings/marketplace_section.dart';
 import 'components/settings/updates_section.dart';
@@ -255,17 +256,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with TickerProv
                           // Appearance Section
                           _buildSectionTitle(loc.t('settings.sections.appearance')),
                           const SizedBox(height: 16),
-                          _buildSettingRow(
-                            label: loc.t('settings.appearance.dark_mode'),
-                            trailing: Switch(
-                              value: isDarkMode,
-                              onChanged: (value) {
-                                ref.read(isDarkModeProvider.notifier).state = value;
-                              },
-                              activeThumbColor: const Color(0xFF0EA5E9),
-                            ),
-                            isDarkMode: isDarkMode,
-                          ),
+                          const AppearanceSettingsSection(),
                           const SizedBox(height: 32),
                           // Diagnostics — last, because it is about the app
                           // rather than about the user's mods.

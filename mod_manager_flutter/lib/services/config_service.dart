@@ -69,7 +69,15 @@ class ConfigService implements ModCharacterTagStore {
   String? get saveModsPath => _prefs.getString(_keySaveModsPath);
   List<String> get activeMods => _prefs.getStringList(_keyActiveMods) ?? [];
   List<String> get favoriteMods => _prefs.getStringList(_keyFavoriteMods) ?? [];
-  String get theme => _prefs.getString(_keyTheme) ?? 'dark-blue';
+  /// The theme the user picked, as a `ThemeMode` **name** (`light` | `system` |
+  /// `dark`).
+  ///
+  /// Empty when never chosen, so the caller applies its own default rather than
+  /// this layer having to know what it is — the same shape as
+  /// [marketplaceSort]. Parsed by `parseThemeMode`, which degrades anything
+  /// unrecognised to `system`; that tolerance is what lets the key hold the
+  /// palette name older builds wrote under it.
+  String get theme => _prefs.getString(_keyTheme) ?? '';
   String get language => _prefs.getString(_keyLanguage) ?? 'en';
   String get sortMode => _prefs.getString(_keySortMode) ?? 'added';
   bool get isFirstRun => _prefs.getBool(_keyFirstRun) ?? true;

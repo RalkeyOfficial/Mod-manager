@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mod_manager_flutter/screens/components/settings/appearance_section.dart';
 import 'package:mod_manager_flutter/screens/components/settings/diagnostics_section.dart';
 import 'package:mod_manager_flutter/screens/components/settings/marketplace_section.dart';
 import 'package:mod_manager_flutter/screens/components/settings/updates_section.dart';
@@ -9,7 +10,7 @@ import 'package:mod_manager_flutter/utils/state_providers.dart';
 
 import 'support/localized_harness.dart';
 
-/// The two settings the Settings tab gained, from the side that writes.
+/// The Settings tab's sections, from the side that writes.
 ///
 /// Both go through an injected writer rather than `ApiService`, which lazily
 /// builds a `ConfigService` against the developer's **real**
@@ -17,6 +18,7 @@ import 'support/localized_harness.dart';
 /// their library paths. The seam is what makes the tab testable at all; it had
 /// no widget tests before these.
 Future<void> _noopBool(bool _) async {}
+Future<void> _noopTheme(ThemeMode _) async {}
 Future<void> _noopMode(ContentFilterMode _) async {}
 
 void main() {
@@ -25,6 +27,64 @@ void main() {
   setUp(() {
     container = ProviderContainer();
     addTearDown(container.dispose);
+  });
+
+  group('appearance', () {
+    testWidgets('offers three choices and starts on the desktop',
+        (tester) async {
+      await pumpLocalized(
+        tester,
+        AppearanceSettingsSection(writer: (_) async {}),
+        container: container,
+      );
+      expectBuilt(AppearanceSettingsSection);
+
+      expect(find.text('Light'), findsOneWidget);
+      expect(find.text('System'), findsOneWidget);
+      expect(find.text('Dark'), findsOneWidget);
+
+      final button = tester.widget<SegmentedButton<ThemeMode>>(
+        find.byType(SegmentedButton<ThemeMode>),
+      );
+      expect(
+        button.selected,
+        {ThemeMode.system},
+        reason: 'nobody has chosen yet, so the desktop decides',
+      );
+    });
+
+    testWidgets('picking one writes through', (tester) async {
+      ThemeMode? written;
+      await pumpLocalized(
+        tester,
+        AppearanceSettingsSection(writer: (mode) async => written = mode),
+        container: container,
+      );
+
+      await tester.tap(find.text('Light'));
+      await tester.pumpAndSettle();
+
+      // Both halves: the provider so the app repaints now, and the write so
+      // the choice is still there on the next launch — which is the half that
+      // was missing when this was a switch.
+      expect(container.read(themeModeProvider), ThemeMode.light);
+      expect(container.read(isDarkModeProvider), isFalse);
+      expect(written, ThemeMode.light);
+    });
+
+    testWidgets('reflects a value hydrated from config', (tester) async {
+      container.read(themeModeProvider.notifier).state = ThemeMode.dark;
+      await pumpLocalized(
+        tester,
+        AppearanceSettingsSection(writer: (_) async {}),
+        container: container,
+      );
+
+      final button = tester.widget<SegmentedButton<ThemeMode>>(
+        find.byType(SegmentedButton<ThemeMode>),
+      );
+      expect(button.selected, {ThemeMode.dark});
+    });
   });
 
   group('updates', () {
@@ -86,22 +146,31 @@ void main() {
     });
   });
 
-  testWidgets('both rows survive a minimum-width window', (tester) async {
+  testWidgets('every row survives a minimum-width window', (tester) async {
     // The two overflow bugs this app has had were both a row with a fixed-size
     // control and text beside it, found at 480px. A description makes that
-    // shape more likely, not less, so it is pinned rather than eyeballed.
+    // shape more likely, not less, so it is pinned rather than eyeballed —
+    // and the three-way theme control is the widest thing on the tab.
+    //
+    // Scrollable like the tab itself, so a description wrapping to more lines
+    // is what it is on the page — the *width* is the question here.
     await pumpLocalized(
       tester,
-      const Column(
-        children: [
-          UpdatesSettingsSection(writer: _noopBool),
-          SizedBox(height: 16),
-          MarketplaceSettingsSection(writer: _noopMode),
-        ],
+      const SingleChildScrollView(
+        child: Column(
+          children: [
+            AppearanceSettingsSection(writer: _noopTheme),
+            SizedBox(height: 16),
+            UpdatesSettingsSection(writer: _noopBool),
+            SizedBox(height: 16),
+            MarketplaceSettingsSection(writer: _noopMode),
+          ],
+        ),
       ),
       container: container,
       surfaceSize: const Size(480, 800),
     );
+    expectBuilt(AppearanceSettingsSection);
     expectBuilt(UpdatesSettingsSection);
     expectBuilt(MarketplaceSettingsSection);
     expect(tester.takeException(), isNull);

@@ -32,7 +32,7 @@ App-data locations are `~/.local/share/zzz-mod-manager` (Linux) and
   "save_mods_path": "/path/to/ZZMI/Mods",
   "active_mods": ["Ellen Swimsuit"],
   "favorite_mods": ["Ellen Swimsuit"],
-  "theme": "dark",
+  "theme": "system",
   "language": "en",
   "sort_mode": "added",
   "content_filter": "blur",
@@ -54,7 +54,7 @@ App-data locations are `~/.local/share/zzz-mod-manager` (Linux) and
 | `save_mods_path` | `save_mods_path` | The game's mods folder, where links are created |
 | `active_mods` | `active_mods` | String list of mod folder names |
 | `favorite_mods` | `favorite_mods` | String list of mod folder names |
-| `theme` | `theme` | |
+| `theme` | `theme` | The theme, as a `ThemeMode` Dart name (`light` \| `system` \| `dark`). Empty until chosen ([§3](#3-parsing-a-stored-value)), and parsed by `parseThemeMode`, which **degrades anything unrecognised to `system`** — the key is older than the setting and holds a palette name (`dark-blue`) in any config an earlier build wrote, so the tolerance is what an upgrade lands on |
 | `language` | `language` | Locale code (`en`, `uk`) |
 | `sort_mode` | `sort_mode` | The **mods library** sort. Parsed into `ModSort`; falls back to `added` |
 | `content_filter` | `content_filter` | Marketplace adult-content treatment: `blur` (default) \| `show` \| `hide`. Stored as a raw string and parsed by `ContentFilterMode.parse`, which **degrades anything unrecognised to `blur`** — the only value that is wrong in neither direction ([§3](#3-parsing-a-stored-value)) |
@@ -94,6 +94,11 @@ above:
     two failure modes are not symmetric: failing open un-blurs adult content, and
     failing to `hide` silently empties the grid. `blur` is wrong in neither
     direction.
+  - An unrecognised `theme` falls back to **`system`**, and that path is the common
+    one rather than the corrupt one: the key is older than the setting that reads
+    it, so every config written by an earlier build holds a palette name
+    (`dark-blue`) there. Following the desktop is the only answer that is not a
+    claim about what the user wanted.
 
 Anything unparseable therefore degrades rather than throwing — a corrupt or
 hand-edited config must not prevent startup.
@@ -147,7 +152,7 @@ page and category.
 
 The Settings tab (`screens/settings_screen.dart`) renders section by section:
 **Mod directories**, **Language**, **Updates**, **Marketplace**, **Automatic
-tagging**, **Diagnostics**, **Appearance**. Only the paths are applied by the
+tagging**, **Appearance**, **Diagnostics**. Only the paths are applied by the
 *Save configuration* button; everything else writes as it is changed.
 
 Anything with a description of its own lives in `screens/components/settings/` as
@@ -159,8 +164,24 @@ rewrite their library paths.
 
 `SettingsRow` (label, description, control) exists because a setting with a
 consequence cannot be a bare label. The older `_buildSettingRow` inside the screen
-is label-and-control only, which is enough for *Dark mode* and for nothing that
-contacts the network or decides whether adult content is on screen.
+is label-and-control only, which is enough for the language dropdown and for
+nothing that contacts the network, decides whether adult content is on screen, or
+offers a choice whose name does not explain it — *System* needs the sentence
+saying it tracks the desktop.
+
+### The theme is two questions, not one
+
+`themeModeProvider` is what the user picked and `isDarkModeProvider` is what the
+app draws, and only the first is stored. *System* is answered by
+`platformBrightnessProvider`, which `MyApp` refreshes from its
+`didChangePlatformBrightness` observer — one observer for the whole app, so a
+desktop that switches at sunset takes every screen with it and no screen has to
+hold a `MediaQuery` to notice.
+
+Everything that paints its own colours watches `isDarkModeProvider`, and
+`MaterialApp`'s `ThemeData` is built from the same value rather than from
+`themeMode`, so the hand-rolled palettes and the Material one cannot disagree
+about which brightness is on screen.
 
 ### Progress belongs on the control, not over the page
 
@@ -207,7 +228,7 @@ Recorded so each is not mistaken for an oversight:
 | The post-upgrade "N mods aren't tracked" nudge | The feature is not built, so its dismissed flag has nothing to dismiss. |
 | Automatic updating | Refused, not unbuilt — [`applying-updates.md` §7](applying-updates.md#automatic-updating--considered-and-refused). The **Updates** section's one switch is about *checking*, and its wording keeps that distinction visible. |
 
-One setting *is* surfaced and does **not** persist: **Dark mode** writes a plain
-`StateProvider` and nothing else, so it resets on every launch — despite a
-`theme` key existing in `config.json` with no reader. That is a real gap rather
-than a decision, and it is filed.
+**A palette picker** is the one appearance choice not offered. *Light / System /
+Dark* is the brightness, and the accent (`0xFF0EA5E9`) is fixed in `ThemeData`
+and repeated in the hand-painted gradients, so a second colour would have to be
+threaded through those before it could be a setting.

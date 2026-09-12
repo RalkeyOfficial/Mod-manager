@@ -94,10 +94,35 @@ class MyApp extends ConsumerStatefulWidget {
   ConsumerState<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends ConsumerState<MyApp> {
+class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   bool _isFirstRun = true;
   bool _isLoading = true;
   bool _hasCheckedFirstRun = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// The desktop switched between light and dark.
+  ///
+  /// Only a `system` theme choice acts on it, and `isDarkModeProvider` is where
+  /// that is decided — this reports the desktop's answer and nothing else. The
+  /// whole app follows one observer, so a screen never has to hold a
+  /// `MediaQuery` to stay in step.
+  @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    ref.read(platformBrightnessProvider.notifier).state =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+  }
 
   @override
   void didChangeDependencies() {

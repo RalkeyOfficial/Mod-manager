@@ -64,6 +64,30 @@ void main() {
     });
   });
 
+  group('theme', () {
+    test('is empty until chosen, so the caller applies its own default',
+        () async {
+      expect((await build()).theme, '');
+    });
+
+    test('survives into a fresh session', () async {
+      await (await build()).setTheme('light');
+
+      SharedPreferences.setMockInitialValues({});
+      final next = await build();
+      expect(next.theme, '',
+          reason: 'nothing in prefs yet — the file has not been loaded');
+
+      await next.loadFromFile();
+      expect(next.theme, 'light');
+    });
+
+    test('reaches config.json, not just SharedPreferences', () async {
+      await (await build()).setTheme('dark');
+      expect((await readFile())['theme'], 'dark');
+    });
+  });
+
   group('content filter', () {
     test('defaults to blur with nothing stored', () async {
       expect((await build()).contentFilter, 'blur');

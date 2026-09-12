@@ -761,7 +761,11 @@
       "symlinks": "This app uses symbolic links to safely manage mods without copying files."
     },
     "appearance": {
-      "dark_mode": "Dark mode"
+      "theme": "Theme",
+      "theme_hint": "System follows your desktop's light or dark setting, and changes with it.",
+      "theme_light": "Light",
+      "theme_system": "System",
+      "theme_dark": "Dark"
     },
     "auto_tag": {
       "title": "Automatic tagging",

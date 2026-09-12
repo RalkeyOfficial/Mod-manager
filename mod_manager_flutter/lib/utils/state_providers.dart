@@ -266,8 +266,39 @@ final currentCharacterSkinsProvider = Provider<List<ModInfo>>((ref) {
   }
 
   return characters[selectedIndex].skins;
-}); // Theme mode provider (dark/light)
-final isDarkModeProvider = StateProvider<bool>((ref) => true);
+});
+
+/// The user's theme choice: light, dark, or whatever the desktop is set to.
+///
+/// Hydrated from `config.json`'s `theme` key in `ApiService.initialize` and
+/// written through `ApiService.setThemeMode`, like the preferences below.
+/// **Defaults to [ThemeMode.system]**, so until somebody says otherwise the app
+/// is the colour the rest of their desktop already is.
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+
+/// What the desktop itself is set to, kept current by `MyApp`'s observer.
+///
+/// Only [ThemeMode.system] consults it. A provider rather than a direct
+/// `PlatformDispatcher` read at each call site so a test can state the
+/// desktop's answer, and so one observer serves the whole app.
+final platformBrightnessProvider = StateProvider<Brightness>(
+  (ref) => PlatformDispatcher.instance.platformBrightness,
+);
+
+/// Whether the app draws dark **right now** — the choice resolved against the
+/// desktop.
+///
+/// The single answer to that question: every screen that paints its own colours
+/// reads this, and `MaterialApp`'s `ThemeData` is built from it as well, so the
+/// hand-rolled palettes and the Material one cannot disagree.
+final isDarkModeProvider = Provider<bool>((ref) {
+  return switch (ref.watch(themeModeProvider)) {
+    ThemeMode.light => false,
+    ThemeMode.dark => true,
+    ThemeMode.system =>
+      ref.watch(platformBrightnessProvider) == Brightness.dark,
+  };
+});
 
 // Settings providers
 final modsPathProvider = StateProvider<String>((ref) => '');

@@ -94,6 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Descriptions keep the paragraph spacing their author gave them.
 - Downloaded archives land in the app's own downloads folder and are deleted once installed. Anything left over is cleared when you next start the app.
 - The window uses your desktop's own title bar, so its buttons sit where the rest of your system puts them and it has the window menu, keyboard shortcuts and decoration theme every other window has.
+- Settings offers Light, System or Dark in place of the dark-mode switch. System is what the app starts on, and it follows your desktop's own light or dark setting for as long as you leave it there.
 
 ### Removed
 
@@ -121,6 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Installing a mod no longer risks deleting the folder its archive was sitting in.
 - Metadata written by a newer version of the app is no longer erased when you edit a mod's description, tags or character.
 - Saving a mod with no character no longer records "unknown" as its character.
+- The theme you pick is still there the next time you start the app.
 
 ## [2.2.2] - 2026-07-19
 

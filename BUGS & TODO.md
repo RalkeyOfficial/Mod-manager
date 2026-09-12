@@ -389,16 +389,6 @@ are [`docs/configuration.md`](docs/configuration.md).
   comment on the field. A separate first-load flag — or a limiter that is not
   inside the swapped subtree — would make the mistake unavailable rather than
   merely documented.
-- [ ] **Switching the theme does not save.** The Settings switch changes the app
-  at once and the choice is gone on the next launch, which every launch starts
-  dark — so it is invisible to anyone who wanted dark anyway, and the light
-  theme is effectively unreachable for longer than one session.
-  `isDarkModeProvider` is a plain `StateProvider` written by that switch and by
-  nothing else. `config.json` even carries a `theme` key — written by
-  `_saveToFile`, read back by `loadFromFile`, and **read by no UI at all**, so
-  the value is round-tripped and then ignored. Saving it is a three-place change
-  plus a decision about what `theme` should hold, now that it stores
-  `'dark-blue'` rather than a boolean.
 - [ ] **Two `allowsUnattendedUpdate` predicates have no reader and now never
   will.** `ModOrigin.allowsUnattendedUpdate` and
   `OriginConfidence.allowsUnattendedUpdate` (`origin_enums.dart`) — with

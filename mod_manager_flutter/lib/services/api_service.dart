@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:mod_manager_flutter/utils/state_providers.dart';
+import 'package:mod_manager_flutter/utils/theme_setting.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/character_info.dart';
@@ -56,6 +58,11 @@ class ApiService {
       _container!.read(marketplaceSortProvider.notifier).state =
           GbModSort.byName(_configService!.marketplaceSort) ??
               kDefaultMarketplaceSort;
+      // Parsed rather than looked up, for the same reason as the filter above:
+      // the key predates the setting and holds a palette name in a config any
+      // older build wrote.
+      _container!.read(themeModeProvider.notifier).state =
+          parseThemeMode(_configService!.theme);
       _container!.read(updateCheckOnLaunchProvider.notifier).state =
           _configService!.updateCheckOnLaunch;
       _container!.read(fileLoggingProvider.notifier).state =
@@ -278,6 +285,15 @@ class ApiService {
     await initialize();
     await _configService!.setMarketplaceSort(sort.name);
     _container?.read(marketplaceSortProvider.notifier).state = sort;
+  }
+
+  /// Persists the theme choice and applies it immediately.
+  ///
+  /// Stores the `ThemeMode` name, which is what `parseThemeMode` reads back.
+  static Future<void> setThemeMode(ThemeMode mode) async {
+    await initialize();
+    await _configService!.setTheme(mode.name);
+    _container?.read(themeModeProvider.notifier).state = mode;
   }
 
   /// Persists whether the update check runs on its own at startup.
