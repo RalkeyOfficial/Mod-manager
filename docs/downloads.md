@@ -187,6 +187,14 @@ localized summary. Of the three `Size` fields that output carries, only the bare
 one counts: `Packed Size` is what the archive already holds and `Physical Size`
 is the archive file itself.
 
+**A listing that does not arrive whole answers nothing.** `-slt` prints a block
+per entry, so output grows with file count — a few hundred files is past any cap
+meant for a diagnostic banner, and a cut listing still parses, still exits 0 and
+sums to less than the archive holds. That number would say an install fits when
+it does not, which is the failure this check exists to prevent, so the probe
+reports truncation (`ProbeResult.truncated`) and a truncated listing is treated
+as an unknown size. The cap it runs under is 32 MB, past any real mod.
+
 A refusal writes nothing, keeps the archive, and names both figures — the archive
 is the way out, so an install that could not unpack is retried by clearing space
 rather than by downloading again.

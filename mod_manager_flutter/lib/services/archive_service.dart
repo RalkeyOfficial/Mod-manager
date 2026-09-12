@@ -314,9 +314,19 @@ class ArchiveService {
     // here lets it get there.
     if (sevenZipPath == null) return null;
 
-    final result = await const ProcessProbe(timeout: Duration(seconds: 10))
-        .run(sevenZipPath, ['l', '-slt', archiveFile.path]);
+    // **The cap is sized for a listing, not for a banner.** `-slt` prints a
+    // block of 150–300 bytes per entry, so the default 64 KB is spent by a few
+    // hundred files — and a cut listing still parses, still exits 0, and sums
+    // to a number that is too small. That number would say an install fits when
+    // it does not, which is the failure this check exists to prevent. 32 MB is
+    // past any real mod (~100k entries) and the output is our own tool's.
+    final result = await const ProcessProbe(
+      timeout: Duration(seconds: 10),
+      maxBytes: 32 * 1024 * 1024,
+    ).run(sevenZipPath, ['l', '-slt', archiveFile.path]);
     if (result == null || result.timedOut || result.exitCode != 0) return null;
+    // Past even that, the honest answer is that we do not know the size.
+    if (result.truncated) return null;
     return parseSevenZipUnpackedBytes(result.stdout);
   }
 

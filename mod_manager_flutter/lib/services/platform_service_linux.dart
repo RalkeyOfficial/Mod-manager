@@ -330,6 +330,9 @@ class LinuxPlatformService implements PlatformService {
   }) async {
     final result = await probe.run('df', ['-kP', forPath]);
     if (result == null || result.timedOut || result.exitCode != 0) return null;
+    // Two lines for one path, so this cannot happen — and a cut listing would
+    // answer with some other volume's free space, which is worth one check.
+    if (result.truncated) return null;
     return parseDfAvailableBytes(result.stdout);
   }
 }

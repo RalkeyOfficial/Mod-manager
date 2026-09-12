@@ -396,6 +396,29 @@ void main() {
       expect(dest.listSync(), isEmpty);
     }, skip: _sevenZip == null ? '7z not installed' : null);
 
+    test('a 7z of many files is sized in full, not to the first few hundred',
+        () async {
+      // `7z l -slt` prints a block per entry, so a mod with a few hundred files
+      // — a texture pack, a character overhaul, a UI bundle — runs past any cap
+      // meant for a diagnostic banner. A cut listing still parses and still
+      // exits 0: it just sums to less than the archive holds, and says an
+      // install fits when it does not.
+      final source = Directory(path.join(tmp.path, 'src', 'Mod'))
+        ..createSync(recursive: true);
+      for (var i = 0; i < 600; i++) {
+        File(path.join(source.path, 'tex$i.dds')).writeAsStringSync('z' * 1024);
+      }
+
+      final archivePath = path.join(tmp.path, 'Many.7z');
+      final made = Process.runSync(
+        _sevenZip!,
+        ['a', archivePath, path.join(tmp.path, 'src', 'Mod')],
+      );
+      expect(made.exitCode, 0, reason: made.stderr.toString());
+
+      expect(await ArchiveService.unpackedSize(File(archivePath)), 600 * 1024);
+    }, skip: _sevenZip == null ? '7z not installed' : null);
+
     test('an unsupported format is not sized, and not refused', () async {
       // Nothing here can unpack a `.tar.gz`, so the extraction reports the
       // format — a space refusal in front of that would name the wrong problem.

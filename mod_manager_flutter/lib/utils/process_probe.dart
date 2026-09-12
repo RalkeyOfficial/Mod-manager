@@ -29,12 +29,21 @@ class ProbeResult {
     required this.stdout,
     required this.stderr,
     this.timedOut = false,
+    this.truncated = false,
   });
 
   final int exitCode;
   final String stdout;
   final String stderr;
   final bool timedOut;
+
+  /// The child wrote more than [ProcessProbe.maxBytes] and what is here is the
+  /// beginning of it.
+  ///
+  /// **A caller that sums or counts the output has to check this**, because a
+  /// truncated listing parses perfectly and answers with a number that is too
+  /// small. Exit code 0 says the tool succeeded, not that we kept what it said.
+  final bool truncated;
 
   /// Both streams, for a tool that prints its banner to stderr — several do.
   String get output => stdout.isNotEmpty ? stdout : stderr;
@@ -72,8 +81,10 @@ class ProcessProbe {
       return null;
     }
 
-    final out = _collect(process.stdout);
-    final err = _collect(process.stderr);
+    final out = _Collected();
+    final err = _Collected();
+    final outDone = _collect(process.stdout, out);
+    final errDone = _collect(process.stderr, err);
 
     var timedOut = false;
     final exitCode = await process.exitCode.timeout(
@@ -85,27 +96,41 @@ class ProcessProbe {
       },
     );
 
+    await outDone;
+    await errDone;
+
     return ProbeResult(
       exitCode: exitCode,
-      stdout: await out,
-      stderr: await err,
+      stdout: out.text,
+      stderr: err.text,
       timedOut: timedOut,
+      truncated: out.truncated || err.truncated,
     );
   }
 
-  Future<String> _collect(Stream<List<int>> stream) async {
-    final buffer = StringBuffer();
+  Future<void> _collect(Stream<List<int>> stream, _Collected into) async {
     const decoder = SystemEncoding();
     await for (final chunk in stream) {
-      if (buffer.length >= maxBytes) continue; // still draining, just not keeping
+      if (into.buffer.length >= maxBytes) {
+        // Still draining — a child that fills the pipe buffer blocks on write
+        // and never exits — but no longer keeping, and saying so.
+        into.truncated = true;
+        continue;
+      }
       try {
-        buffer.write(decoder.decode(chunk));
+        into.buffer.write(decoder.decode(chunk));
       } catch (_) {
         // A code page we cannot decode is not a reason to fail a probe.
       }
     }
-    return buffer.toString();
   }
+}
+
+class _Collected {
+  final StringBuffer buffer = StringBuffer();
+  bool truncated = false;
+
+  String get text => buffer.toString();
 }
 
 /// The first version-shaped token in [output], or null.
